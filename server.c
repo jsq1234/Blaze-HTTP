@@ -1,9 +1,12 @@
+#include <asm-generic/errno-base.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <error.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
@@ -12,7 +15,7 @@
 #define PORT 8000
 #define SA struct sockaddr
 #define BUF_SIZE 1024
-#define FILE_NOT_FOUND 0
+#define FILE_NOT_FOUND ENOENT
 
 typedef struct _http_request_headers {
   char *host;
@@ -112,6 +115,7 @@ int main() {
     read_request(&request, connfd);
     // printf("poggers!\n");
     handle_request(&request, connfd);
+   
     
   }
 }
@@ -254,7 +258,7 @@ void read_request(struct HttpRequest *request, int connfd) {
     // at least in the cause of HTTP GET request
     //  last 4 bytes are \r\n\r\n then means the request is complete;
     if (strncmp(buffer + len - 4, "\r\n\r\n", 4) == 0) {
-      printf("%s", message);
+      //printf("%s", message);
       // printf("total length: %d\n",total_length);
       break;
     }
@@ -262,7 +266,7 @@ void read_request(struct HttpRequest *request, int connfd) {
 
   parse(request, message);
 }
-void handle_error(int err, int connfd) {}
+
 void handle_request(struct HttpRequest *request, int connfd) {
 
   if (strcmp(request->method, "GET") == 0) {
@@ -270,13 +274,17 @@ void handle_request(struct HttpRequest *request, int connfd) {
       char *filepath = "index.html";
       FILE *fptr = fopen(filepath, "r");
       if (fptr == NULL) {
-        handle_error(FILE_NOT_FOUND, connfd);
+        handle_error(errno, connfd);
+        errno = 0;
         return;
       }
+
       char *page = read_file(filepath, fptr);
       int content_length = strlen(page);
+
       char *response_message =
           (char *)calloc(content_length + 300, sizeof(char));
+
       snprintf(response_message, content_length + 300,
                "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: "
                "text/html\r\n\r\n",
@@ -346,4 +354,23 @@ char *read_file(char *filepath, FILE *fptr) {
   }
   page[i] = '\0';
   return page;
+}
+
+void handle_error(int err, int connfd) {
+  if( err == FILE_NOT_FOUND ){
+    FILE* fptr = fopen("error_html/error_404.html","r");
+    char* page = read_file("error_404.html",fptr);
+    int content_length = strlen(page);
+
+    char* error_reply = (char*)calloc(content_length + 300,sizeof(char));
+    
+    snprintf(error_reply,content_length+300,
+    "HTTP/1.1 404 Not Found\r\nContent-Length: %d\r\nContent-Type: text/html\r\n\r\n",
+    content_length);
+    strcat(error_reply,page);
+
+    send_all(connfd,error_reply);
+    printf("sent message: %s",error_reply);
+
+  }
 }

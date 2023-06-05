@@ -1,4 +1,4 @@
-#include <asm-generic/errno-base.h>
+#include <asm-generic/socket.h>
 #include <errno.h>
 #include <error.h>
 #include <netdb.h>
@@ -16,8 +16,9 @@
 #define PORT 8080
 #define SA struct sockaddr
 #define BUF_SIZE 1024
-#define CONTENT_TYPE_INCORRECT 200
+#define NOT_ACCEPTABLE 406
 #define FILE_NOT_FOUND ENOENT
+#define NOT_IMPLEMENTED 501
 #define EXTRA_LEN 300
 #define RED "\033[1;31m"
 #define RESET "\033[0m"
@@ -110,7 +111,7 @@ int main() {
     exit(0);
   } else
     printf("Socket successfully created..\n");
-  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &(int){1}, sizeof(int)) < 0)
     perror("setsockopt(SO_REUSEADDR) failed");
   memset(&servaddr, 0, sizeof(servaddr));
   memset(&cli, 0, sizeof(cli));
@@ -147,6 +148,7 @@ int main() {
     struct HttpRequest request;
     struct HttpResponse response;
     memset(&request, 0, sizeof(request));
+    memset(&response,0,sizeof(response));
     read_request(&request, connfd);
     handle_request(&request, connfd, &response);
   }
@@ -290,8 +292,6 @@ void read_request(struct HttpRequest *request, int connfd) {
     // at least in the cause of HTTP GET request
     //  last 4 bytes are \r\n\r\n then means the request is complete;
     if (strncmp(buffer + len - 4, "\r\n\r\n", 4) == 0) {
-      // printf("%s", message);
-      //  printf("total length: %d\n",total_length);
       break;
     }
   }
@@ -333,7 +333,7 @@ void handle_request(struct HttpRequest *request, int connfd,
     response->headers.content_length = strlen(page);
     
     if( get_content_type(response->headers.content_type,filepath) != 0 ){
-      handle_error(CONTENT_TYPE_INCORRECT,connfd);
+      handle_error(NOT_ACCEPTABLE,connfd);
       return ;
     }
 
@@ -360,6 +360,8 @@ void handle_request(struct HttpRequest *request, int connfd,
     #endif
 
     free(response_message);
+  }else{
+    handle_error(NOT_IMPLEMENTED,connfd);
   }
 }
 
@@ -418,6 +420,21 @@ void handle_error(int err, int connfd) {
       printf(RED "error message: " RESET "\n%s",error_reply);
     #endif
     free(error_reply);
+  }
+  if( err == NOT_ACCEPTABLE ){
+    char* error_reply = "HTTP/1.1 406 Not Acceptable\r\nContent-Length: 0\r\n\r\n";
+    send_all(connfd,error_reply);
+    #ifdef DEBUG
+      printf(RED "error message: " RESET "\n%s",error_reply);
+    #endif
+  }
+  if( err == NOT_IMPLEMENTED ){
+    char* error_reply = "HTTP/1.1 501 Not Implemented\r\nContent-Length: 0\r\n\r\n";
+    send_all(connfd,error_reply);
+
+    #ifdef DEBUG
+      printf(RED "error message: " RESET "\n%s",error_reply);
+    #endif
   }
 }
 

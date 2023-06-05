@@ -1,37 +1,69 @@
 #include <asm-generic/errno-base.h>
+#include <errno.h>
+#include <error.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <error.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
 
 #define MAX 80
-#define PORT 8000
+#define PORT 8080
 #define SA struct sockaddr
 #define BUF_SIZE 1024
+#define CONTENT_TYPE_INCORRECT 200
 #define FILE_NOT_FOUND ENOENT
+#define EXTRA_LEN 300
+#define RED "\033[1;31m"
+#define RESET "\033[0m"
+#define DEBUG
+
+enum mime_types{
+  HTML,
+  CSS,
+  JS,
+  PNG,
+  JPEG,
+  SVG,
+  AVIF,
+  AWAV,
+  AWEBM,
+  VWEBM
+};
+
+const char* content_types[] = {
+  "text/html",
+  "text/css",
+  "text/javascript",
+  "image/png",
+  "image/jpeg",
+  "image/svg+xml",
+  "image/avif",
+  "audio/wav",
+  "audio/webm",
+  "video/webm"
+};
 
 typedef struct _http_request_headers {
   char *host;
   char connection[15];
   char content_type[100];
-  unsigned int content_length;
+  uint32_t content_length;
   char *accept[20];
   char *accept_language;
   char *accept_encoding;
 } HttpRequestHeaders;
 
 typedef struct _http_response_headers {
-  const char *content_type;
-  const char *content_length;
-  const char *content_encoding;
-  const char *connection;
+  char content_type[50];
+  uint32_t content_length;
+  char *content_encoding;
+  char *connection;
 } HttpResponseHeaders;
 
 struct HttpRequest {
@@ -42,9 +74,9 @@ struct HttpRequest {
   char *body;
 };
 struct HttpResponse {
-  const char *protocol_version[20];
-  const char *status_code[4];
-  const char *status_text[100];
+  char protocol_version[20];
+  char status_code[4];
+  char status_text[100];
   HttpResponseHeaders headers;
 };
 
@@ -58,10 +90,13 @@ void parse(struct HttpRequest *request, char *message);
 int get_str(char *ptr, const char delim);
 void update_fields(const char *m, HttpRequestHeaders *header, char *ptr);
 void read_request(struct HttpRequest *request, int connfd);
-void handle_request(struct HttpRequest *request, int connfd);
+void handle_request(struct HttpRequest *request, int connfd,
+                    struct HttpResponse *response);
 void send_all(int connfd, char *msg);
 void handle_error(int err, int connfd);
 char *read_file(char *filepath, FILE *fptr);
+int get_content_type(char* __content_ptr, char* filepath);
+
 // Driver function
 int main() {
   int sockfd, connfd;
@@ -110,13 +145,10 @@ int main() {
 
   while (1) {
     struct HttpRequest request;
-
+    struct HttpResponse response;
     memset(&request, 0, sizeof(request));
     read_request(&request, connfd);
-    // printf("poggers!\n");
-    handle_request(&request, connfd);
-   
-    
+    handle_request(&request, connfd, &response);
   }
 }
 
@@ -218,7 +250,7 @@ int get_str(char *ptr, const char delim) {
 }
 
 void read_request(struct HttpRequest *request, int connfd) {
-  // assuming the http fileds are just 5000 bytes
+  // assuming the http fileds are just 800 bytes
   // to-do change it to something better
   char message[800];
 
@@ -258,68 +290,78 @@ void read_request(struct HttpRequest *request, int connfd) {
     // at least in the cause of HTTP GET request
     //  last 4 bytes are \r\n\r\n then means the request is complete;
     if (strncmp(buffer + len - 4, "\r\n\r\n", 4) == 0) {
-      //printf("%s", message);
-      // printf("total length: %d\n",total_length);
+      // printf("%s", message);
+      //  printf("total length: %d\n",total_length);
       break;
     }
   }
-
+  #ifdef DEBUG
+    printf("request message: \n%s\n", message);
+  #endif
   parse(request, message);
 }
 
-void handle_request(struct HttpRequest *request, int connfd) {
+void handle_request(struct HttpRequest *request, int connfd,
+                    struct HttpResponse *response) {
 
   if (strcmp(request->method, "GET") == 0) {
-    if (strcmp(request->URL, "/") == 0) {
-      char *filepath = "index.html";
-      FILE *fptr = fopen(filepath, "r");
-      if (fptr == NULL) {
-        handle_error(errno, connfd);
-        errno = 0;
-        return;
-      }
+    //currently, only GET method is implemented 
 
-      char *page = read_file(filepath, fptr);
-      int content_length = strlen(page);
+    char *filepath = ++request->URL; // the url is of the form /something. ++ added to increase it 
+                                    // by 1 so it becomes 'something'
 
-      char *response_message =
-          (char *)calloc(content_length + 300, sizeof(char));
-
-      snprintf(response_message, content_length + 300,
-               "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: "
-               "text/html\r\n\r\n",
-               content_length);
-
-      int len = strlen(response_message);
-      strcat(response_message, page);
-
-      send_all(connfd, response_message);
-      // printf("%s",response_message);
-      // printf("send!\n");
-    } else {
-      char *filepath = ++request->URL;
-      FILE *fptr = fopen(filepath, "r");
-      if (fptr == NULL) {
-        handle_error(FILE_NOT_FOUND, connfd);
-        return;
-      }
-      char *page = read_file(filepath, fptr);
-      int content_length = strlen(page);
-      char *response_message =
-          (char *)calloc(content_length + 300, sizeof(char));
-      snprintf(response_message, content_length + 300,
-               "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: "
-               "text/css\r\n\r\n",
-               content_length);
-
-      int len = strlen(response_message);
-      strcat(response_message, page);
-
-      send_all(connfd, response_message);
+    if (*(filepath) == '\0') {
+      filepath = "index.html";
     }
+
+    FILE *fptr;
+    fptr = fopen(filepath, "r");
+
+    if (fptr == NULL) {
+      // currently, it only handles file not found error.
+      handle_error(errno, connfd);
+      errno = 0;
+      return;
+    }
+    char *page = read_file(filepath, fptr);
+    int content_length = strlen(page);
+
+    strncpy(response->protocol_version, request->version,
+            strlen(request->version));
+    strncpy(response->status_code, "200", 3);
+    strncpy(response->status_text, "OK", 2);
+    response->headers.content_length = strlen(page);
+    
+    if( get_content_type(response->headers.content_type,filepath) != 0 ){
+      handle_error(CONTENT_TYPE_INCORRECT,connfd);
+      return ;
+    }
+
+    char *response_message =
+        (char *)calloc(content_length + EXTRA_LEN, sizeof(char));
+
+    snprintf(response_message, content_length + EXTRA_LEN,
+             "%s %s %s\r\n"
+             "Content-Length: %d\r\n"
+             "Content-Type: %s\r\n"
+             "\r\n",
+             response->protocol_version, response->status_code, response->status_text, 
+             content_length,
+             response->headers.content_type);
+    
+
+    int len = strlen(response_message);
+    strcat(response_message, page);
+
+    send_all(connfd, response_message);
+
+    #ifdef DEBUG
+      printf("response message: \n%s\n", response_message);
+    #endif
+
+    free(response_message);
   }
 }
-
 
 void send_all(int connfd, char *msg) {
   int left = strlen(msg);
@@ -353,24 +395,59 @@ char *read_file(char *filepath, FILE *fptr) {
     i++;
   }
   page[i] = '\0';
+  
   return page;
 }
 
 void handle_error(int err, int connfd) {
-  if( err == FILE_NOT_FOUND ){
-    FILE* fptr = fopen("error_html/error_404.html","r");
-    char* page = read_file("error_404.html",fptr);
+  if (err == FILE_NOT_FOUND) {
+    FILE *fptr = fopen("error_html/error_404.html", "r");
+    char *page = read_file("error_404.html", fptr);
     int content_length = strlen(page);
 
-    char* error_reply = (char*)calloc(content_length + 300,sizeof(char));
-    
-    snprintf(error_reply,content_length+300,
-    "HTTP/1.1 404 Not Found\r\nContent-Length: %d\r\nContent-Type: text/html\r\n\r\n",
-    content_length);
-    strcat(error_reply,page);
+    char *error_reply = (char *)calloc(content_length + 300, sizeof(char));
 
-    send_all(connfd,error_reply);
-    //printf("sent message: %s",error_reply);
+    snprintf(error_reply, content_length + 300,
+             "HTTP/1.1 404 Not Found\r\nContent-Length: %d\r\nContent-Type: "
+             "text/html\r\n\r\n",
+             content_length);
+    strcat(error_reply, page);
 
+    send_all(connfd, error_reply);
+    #ifdef DEBUG
+      printf(RED "error message: " RESET "\n%s",error_reply);
+    #endif
+    free(error_reply);
   }
+}
+
+// can do better. 
+// TO-DO Implement a map instead.
+int get_content_type(char* cont_ptr, char* filename){
+  const char* p = filename;
+  while( *p != '.' ) p++;
+  ++p;
+  
+  if( strcmp(p,"html") == 0 ){
+    strcpy(cont_ptr,content_types[HTML]);
+    return 0;
+  }
+  if( strcmp(p, "css") == 0 ){
+    strcpy(cont_ptr,content_types[CSS]);
+    return 0;
+  }
+  if( strcmp(p,"js") == 0 ){
+    strcpy(cont_ptr,content_types[JS]);
+    return 0;
+  }
+  if( strcmp(p,"png") == 0 ){
+    strcpy(cont_ptr,content_types[PNG]);
+    return 0;
+  }
+  if( strcmp(p,"jpeg") == 0 ){
+    strcpy(cont_ptr, content_types[JPEG]);
+    return 0;
+  }
+  return 1;
+
 }

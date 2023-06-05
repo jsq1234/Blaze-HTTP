@@ -370,7 +370,7 @@ void handle_error(int err, int connfd) {
     strcat(error_reply,page);
 
     send_all(connfd,error_reply);
-    printf("sent message: %s",error_reply);
+    //printf("sent message: %s",error_reply);
 
   }
 }

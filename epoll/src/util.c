@@ -29,7 +29,7 @@ int init_server(uint16_t port) {
     exit(1);
   }
 
-  if (listen(sockfd, 64) == -1) {
+  if (listen(sockfd, 100) == -1) {
     perror("listen()");
     exit(1);
   }
@@ -105,6 +105,7 @@ int send_all(int sockfd, char *msg) {
     ptr += bytes;
     left -= bytes;
   }
+  printf("sent : %s\n",msg);
   return 0;
 }
 

@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +11,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MAX_EVENTS 64
+#define MAX_EVENTS 100
 #define BUF_SIZE 512
 #define RES_BUF_SIZE 1024
 #define REQ_BUF_SIZE 1024
@@ -24,7 +25,6 @@
 
 void accept_incoming_connection(int sockfd, int epoll_fd);
 int read_all(int sockfd, char *msg, size_t buf_size);
-
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -41,9 +41,10 @@ int main(int argc, char *argv[]) {
 
   struct epoll_event events[MAX_EVENTS];
   memset(events, 0, sizeof(events));
-
+  int count = 0;
   while (1) {
-    printf("going back!\n");
+    count++;
+    printf("\n %d : ----- going back! ------ \n", count);
     int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
     printf("got an event!\n");
     if (nfds == -1) {
@@ -59,6 +60,7 @@ int main(int argc, char *argv[]) {
       }
       if (events[i].data.fd == sockfd) { // new connection!
         while (1) {
+          // accept all the connections that are incoming on the socket.
           struct sockaddr_in in_adr;
           socklen_t in_len = sizeof(in_adr);
           memset(&in_adr, 0, in_len);
@@ -72,7 +74,14 @@ int main(int argc, char *argv[]) {
             }
           }
 #ifdef DEBUG
-          printf("new client!\n");
+          char ip_addr[INET_ADDRSTRLEN + 1];
+          memset(ip_addr, 0, sizeof(char) * (INET_ADDRSTRLEN + 1));
+          if (inet_ntop(AF_INET, (const struct sockaddr *)&in_adr, ip_addr,
+                        INET_ADDRSTRLEN + 1) == NULL) {
+            fprintf(stderr, "couldn't get the IP addrress\n");
+          }
+
+          printf("new client : %s\n", ip_addr);
 #endif
           add_event(epoll_fd, in_fd, &event, EPOLLIN | EPOLLET);
           continue;
@@ -83,11 +92,11 @@ int main(int argc, char *argv[]) {
         memset(msg, 0, sizeof(msg));
 
         if (read_all(events[i].data.fd, msg, REQ_BUF_SIZE)) {
-          printf("client closed connection!");
+          printf("client closed connection!\n");
           close(events[i].data.fd);
           continue;
         }
-        printf("writing to client");
+        printf("writing to client\n");
         char res[RES_BUF_SIZE];
         memset(res, 0, sizeof(res));
         strcpy(res, "Hello World!");
@@ -97,7 +106,6 @@ int main(int argc, char *argv[]) {
     }
   }
 }
-
 
 int read_all(int sockfd, char *msg, size_t buf_size) {
   printf("reading from the client!\n");
@@ -110,13 +118,15 @@ int read_all(int sockfd, char *msg, size_t buf_size) {
           perror("read()");
           return 1;
         }
+        // errno == EAGAIN -> there is nothing more left to ready. Exit the
+        // function
         return 0;
+      } else {
+        // bytes == 0, client has closed the connection. Leave the function
+        // close(sockfd);
+        return 1;
       }
-      else {
-      //close(sockfd);
-      return 1;
     }
-    } 
     buffer[bytes] = '\0';
     printf("%s\n", buffer);
     if (concat(msg, buffer, buf_size) == -1) {
@@ -130,5 +140,3 @@ int read_all(int sockfd, char *msg, size_t buf_size) {
 
   return 0;
 }
-
-

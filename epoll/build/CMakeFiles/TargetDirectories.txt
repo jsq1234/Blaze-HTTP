@@ -1,3 +1,0 @@
-/home/manan/programs/web-server-C/epoll/build/CMakeFiles/main.dir
-/home/manan/programs/web-server-C/epoll/build/CMakeFiles/edit_cache.dir
-/home/manan/programs/web-server-C/epoll/build/CMakeFiles/rebuild_cache.dir

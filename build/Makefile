@@ -129,6 +129,30 @@ main/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/build
 .PHONY : main/fast
 
+src/http.o: src/http.c.o
+.PHONY : src/http.o
+
+# target to build an object file
+src/http.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/http.c.o
+.PHONY : src/http.c.o
+
+src/http.i: src/http.c.i
+.PHONY : src/http.i
+
+# target to preprocess a source file
+src/http.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/http.c.i
+.PHONY : src/http.c.i
+
+src/http.s: src/http.c.s
+.PHONY : src/http.s
+
+# target to generate assembly for a file
+src/http.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/http.c.s
+.PHONY : src/http.c.s
+
 src/main.o: src/main.c.o
 .PHONY : src/main.o
 
@@ -186,6 +210,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... main"
+	@echo "... src/http.o"
+	@echo "... src/http.i"
+	@echo "... src/http.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

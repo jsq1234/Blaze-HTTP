@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/main.dir/src/http.c.o"
+  "CMakeFiles/main.dir/src/http.c.o.d"
   "CMakeFiles/main.dir/src/main.c.o"
   "CMakeFiles/main.dir/src/main.c.o.d"
   "CMakeFiles/main.dir/src/utils.c.o"

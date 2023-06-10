@@ -29,6 +29,12 @@ int init_server(uint16_t port) {
     exit(1);
   }
 
+  make_socket_nonblocking(sockfd);
+
+  if (listen(sockfd, 5) < 0) {
+    perror("listen()");
+    exit(1);
+  }
   return 0;
 }
 
@@ -38,6 +44,11 @@ int make_socket_nonblocking(int fd) {
     perror("fcntl()");
     exit(1);
   }
+  flags |= O_NONBLOCK;
 
+  if (fcntl(fd, F_SETFL, flags) < 0) {
+    perror("fcntl()");
+    exit(1);
+  }
   return 0;
 }

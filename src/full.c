@@ -272,6 +272,7 @@ int run_event_loop(event_loop_t* event){
                         printf("Client %d closed connection\n", client_fd);
                         client_closed = 1;
                         close(client_fd);
+                        break;
                     }else if( bytes == -1 ){
                         if( errno == EAGAIN || errno == EWOULDBLOCK ){
                             // we have read all we could
@@ -364,6 +365,8 @@ printf("sending OK reply\n");
     return send_all(sockfd, reply_len, server.reply);
 
 }
+
+
 size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
 
   struct stat file_info;

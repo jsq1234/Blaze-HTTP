@@ -13,7 +13,7 @@
 typedef struct server_ds {
     int sockfd;
     struct sockaddr_in info;
-    char* reply; // reply buffer, 2048 bytes for now
+    char* reply; 
 } server_t;
 
 extern server_t server;

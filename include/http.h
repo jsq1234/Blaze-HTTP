@@ -10,11 +10,6 @@
 #define TRAVERSE_TILL(p,ch) while( *p != '\0' && *p != ch ) ++p; 
 #define CHECK_EOF(l,p) if( l == 4 && strncmp(p,"\r\n\r\n", 4) == 0 ){ return 0; }
 
-enum {
-  FNOTFOUND,
-  NOT_IMPLEMENTED,
-};
-
 extern const char* not_found_reply;
 extern const char* not_implemented_reply;
 

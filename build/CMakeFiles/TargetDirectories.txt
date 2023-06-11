@@ -1,3 +1,0 @@
-/home/manan/programs/server/build/CMakeFiles/main.dir
-/home/manan/programs/server/build/CMakeFiles/edit_cache.dir
-/home/manan/programs/server/build/CMakeFiles/rebuild_cache.dir

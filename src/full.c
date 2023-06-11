@@ -335,7 +335,7 @@ int send_all(int sockfd, size_t len, const char *reply) {
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
-        return -1;
+        fprintf(stderr,"EAGAIN\n");
       }
     }
     reply += bytes;
@@ -362,6 +362,7 @@ int send_response(http_t *request, int sockfd) {
   }
 printf("sending OK reply\n");
   size_t reply_len = OK_reply(fptr, file_path, request);
+printf("content_length: %ld\n", reply_len);
     return send_all(sockfd, reply_len, server.reply);
 
 }

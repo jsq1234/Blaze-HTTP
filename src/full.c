@@ -224,7 +224,7 @@ int run_event_loop(event_loop_t* event){
             if( event->events[i].events == EPOLLERR ){
                 fprintf(stderr,"got EPOLLERR\n");
             }
-            if( event->events[i].data.fd == server.sockfd ) {
+            if( event->events[i].data.fd == server.sockfd && event->events[i].events & EPOLLIN ) {
                 // we recieved a new connection on the socket that the server is listening on
                 // accept all the incoming new connections 
                 while(1){

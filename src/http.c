@@ -5,6 +5,9 @@
 #include <string.h>
 
 http_t request;
+const char* not_found_reply = "HTTP/1.1 404 Not Found\r\n" "Content-Length: 0\r\n\r\n";
+const char* not_implemented_reply = "HTTP/1.1 203 Not implemented\r\n" "Content-Length: 0\r\n\r\n";
+
 int parse_request(const char *msg, size_t msg_len, http_t *request) {
   const char *ptr = msg;
   size_t left = msg_len;
@@ -43,19 +46,4 @@ int parse_request(const char *msg, size_t msg_len, http_t *request) {
   return 0;
 }
 
-int generate_response(http_t* request, char* response){
-  const char* filepath = "";
-  if( strcmp(request->url, "/") == 0 ){
-    filepath = "index.html";
-  }else{
-    filepath = &request->url[1];
-  }
-  FILE* fptr = fopen(filepath,"r");
-  if( fptr == NULL ){
-    handle_error(request, response, FNOTFOUND);
-  }
-  
-  
-   
-  return 0;
-}
+

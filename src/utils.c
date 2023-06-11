@@ -8,47 +8,61 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-int init_server(uint16_t port) {
+int read_text_file(FILE *fptr, long f_size, char* buffer){
+    size_t bytes = 0;
+    char* ptr = buffer;
+    
+    while(1){
+        bytes = fread(ptr,sizeof(char),RD_BUF,fptr);
+        ptr[bytes] = '\0';
+        if( bytes != RD_BUF ) {
+            break;
+        }
+        ptr += bytes;
+    }
 
-  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd < 0) {
-    perror("socket()");
-    exit(1);
-  }
-
-  struct sockaddr_in serv_addr;
-  memset(&serv_addr, 0, sizeof(serv_addr));
-
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(port);
-  serv_addr.sin_addr.s_addr = INADDR_ANY;
-
-  if (bind(sockfd, (const struct sockaddr *)&serv_addr, sizeof(serv_addr)) <
-      0) {
-    perror("bind()");
-    exit(1);
-  }
-
-  make_socket_nonblocking(sockfd);
-
-  if (listen(sockfd, 5) < 0) {
-    perror("listen()");
-    exit(1);
-  }
-  return 0;
+    return 0;
 }
 
-int make_socket_nonblocking(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (flags < 0) {
-    perror("fcntl()");
-    exit(1);
-  }
-  flags |= O_NONBLOCK;
 
-  if (fcntl(fd, F_SETFL, flags) < 0) {
-    perror("fcntl()");
-    exit(1);
-  }
-  return 0;
+const char* get_file_from_url(char *url, size_t url_len){
+    char* ptr = url + url_len - 1;
+    while( *ptr != '.' ) --ptr;
+    return ptr + 1;
 }
+
+int get_content_type(char* buf, const char* url, size_t url_size){
+    url += url_size - 1; // get to the last index
+    while( *url != '.' ) --url;
+    ++url;
+ 
+    if( strcmp(url,"html") == 0 ){
+        strcpy(buf,"text/html");
+    }else if( strcmp(url,"css") == 0 ){
+        strcpy(buf,"text/css");
+    }else if( strcmp(url, "js") == 0 ){
+        strcpy(buf,"text/javascript");
+    }else{
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

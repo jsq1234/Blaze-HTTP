@@ -10,6 +10,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/manan/programs/web-server-C/src/http.c" "CMakeFiles/main.dir/src/http.c.o" "gcc" "CMakeFiles/main.dir/src/http.c.o.d"
   "/home/manan/programs/web-server-C/src/main.c" "CMakeFiles/main.dir/src/main.c.o" "gcc" "CMakeFiles/main.dir/src/main.c.o.d"
+  "/home/manan/programs/web-server-C/src/server.c" "CMakeFiles/main.dir/src/server.c.o" "gcc" "CMakeFiles/main.dir/src/server.c.o.d"
   "/home/manan/programs/web-server-C/src/utils.c" "CMakeFiles/main.dir/src/utils.c.o" "gcc" "CMakeFiles/main.dir/src/utils.c.o.d"
   )
 

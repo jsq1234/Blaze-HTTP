@@ -14,6 +14,10 @@ enum {
   FNOTFOUND,
   NOT_IMPLEMENTED,
 };
+
+extern const char* not_found_reply;
+extern const char* not_implemented_reply;
+
 typedef struct http_headers {
   char connection[10];
   char content_type[30];
@@ -30,7 +34,5 @@ typedef struct http_request {
 extern http_t request;
 
 int parse_request(const char *msg,size_t len, http_t *request);
-int generate_response(http_t *request, char *response);
-int handle_error(http_t* request, char* response, int flags);
 
 #endif

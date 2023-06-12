@@ -12,7 +12,7 @@ The asynchronous server runs in a event loop, polling for sockets that are ready
   2. Remove the contents of build folder
     ``` rm -rf build/* ```
   3. move into the build folder and execute cmake.
-    ``` cd build && cmake .. ``
+    ``` cd build && cmake .. ```
   4. run make 
     ``` make ```
   5. Run the server by giving it a port to run on 

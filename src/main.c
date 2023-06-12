@@ -314,7 +314,7 @@ int run_event_loop(event_loop_t *event) {
 
           printf("sending response...\n");
           send_response(&request, client_fd);
-          printf("sent OK reply\n");
+          printf("sent\n");
 
           // free the server reply which was created using malloc
           if (server.reply != NULL) {
@@ -333,19 +333,21 @@ int send_all(int sockfd, size_t len, const char *reply) {
   // printf("file size: %ld\n", len);
   while (len) {
     bytes = send(sockfd, reply, len, 0);
-    printf("b sent : %ld\n",bytes);
+    //printf("b sent : %ld\n",bytes);
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
-        usleep(1000);
+        //printf("sleeping...\n");
         continue;
+      }else{
+        perror("send()");
       }
     }
     total_sent += bytes;
     reply += bytes;
     len -= bytes;
   }
-  printf("total file size sent : %ld\n", total_sent);
+  //printf("total file size sent : %ld\n", total_sent);
   return 0;
 }
 
@@ -364,9 +366,9 @@ int send_response(http_t *request, int sockfd) {
     // return -1 in case the local send() socket buffer is full
     return send_all(sockfd, strlen(not_found_reply), not_found_reply);
   }
-  printf("sending OK reply\n");
+  //printf("sending OK reply\n");
   size_t reply_len = OK_reply(fptr, file_path, request);
-  printf("whole_length: %ld\n", reply_len);
+  //printf("whole_length: %ld\n", reply_len);
   return send_all(sockfd, reply_len, server.reply);
 }
 

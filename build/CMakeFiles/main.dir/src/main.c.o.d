@@ -1,5 +1,5 @@
-CMakeFiles/main.dir/src/full.c.o: \
- /home/manan/programs/web-server-C/src/full.c /usr/include/stdc-predef.h \
+CMakeFiles/main.dir/src/main.c.o: \
+ /home/manan/programs/web-server-C/src/main.c /usr/include/stdc-predef.h \
  /usr/include/arpa/inet.h /usr/include/features.h \
  /usr/include/features-time64.h /usr/include/bits/wordsize.h \
  /usr/include/bits/timesize.h /usr/include/sys/cdefs.h \

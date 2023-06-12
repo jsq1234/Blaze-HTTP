@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/manan/programs/web-server-C/src/full.c" "CMakeFiles/main.dir/src/full.c.o" "gcc" "CMakeFiles/main.dir/src/full.c.o.d"
+  "/home/manan/programs/web-server-C/src/main.c" "CMakeFiles/main.dir/src/main.c.o" "gcc" "CMakeFiles/main.dir/src/main.c.o.d"
   "/home/manan/programs/web-server-C/src/utils.c" "CMakeFiles/main.dir/src/utils.c.o" "gcc" "CMakeFiles/main.dir/src/utils.c.o.d"
   )
 

@@ -1,4 +1,3 @@
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -231,6 +230,8 @@ int run_event_loop(event_loop_t *event) {
         // listening on accept all the incoming new connections
         while (1) {
           memset(&in_addr, 0, sizeof(in_addr));
+          in_len = sizeof(in_addr);
+
           int connfd =
               accept(server.sockfd, (struct sockaddr *)&in_addr, &in_len);
 
@@ -244,11 +245,12 @@ int run_event_loop(event_loop_t *event) {
             break;
           }
 
+          printf("New client %d connection!\n", connfd);
           if (make_socket_nonblocking(connfd) == -1) {
             continue;
           }
 
-          event->ev.events = EPOLLIN | EPOLLET;
+          event->ev.events = EPOLLIN | EPOLLET | EPOLLOUT ;
           event->ev.data.fd = connfd;
 
           if (epoll_ctl(event->epollfd, EPOLL_CTL_ADD, connfd, &event->ev) <
@@ -259,7 +261,14 @@ int run_event_loop(event_loop_t *event) {
           }
         }
 
-      } else if (event->events[i].events & EPOLLIN) {
+      // }else if (event->events[i].events & EPOLLOUT ){
+      //     printf("recieved : EPOLLOUT \n");
+      //     event->events[i].events = EPOLLIN | EPOLLET;
+      //     if( epoll_ctl(event->epollfd,EPOLL_CTL_MOD,event->events[i].data.fd,&event->events[i]) < 0 ){
+      //       perror("epoll_ctl()");
+            
+      //     }
+      }else if (event->events[i].events & EPOLLIN) {
         // client has send some data to the socket
         // recieve all the data at once
         int client_fd = event->events[i].data.fd;
@@ -291,29 +300,22 @@ int run_event_loop(event_loop_t *event) {
         }
         // if client has not closed the socket
         // only then send the reply
-        printf("client closed var : %d\n", client_closed);
+        //printf("client closed var : %d\n", client_closed);
         if (!client_closed) {
           http_t request;
           // parse_request returns -1 when the request is something other than
           // GET request. In that case we send the default NOT implemented
           // message to the client
           if (parse_request(buffer, strlen(buffer), &request) == -1) {
-            // send_all returns -1 only when send() call returns with EAGAIN or
-            // EWOULDBLOCK this indicates that the send buffers are full retry
-            // it again later
-            if (send_all(client_fd, strlen(not_implemented_reply),
-                         not_implemented_reply) == -1) {
-              // for now continue
-              // to be implemented later
+              send_all(client_fd, strlen(not_implemented_reply),not_implemented_reply);
               continue;
             }
-          }
+          
 
           printf("sending response...\n");
-          if (send_response(&request, client_fd) == -1) {
-            fprintf(stderr, "send returned -1\n");
-          }
+          send_response(&request, client_fd);
           printf("sent OK reply\n");
+
           // free the server reply which was created using malloc
           if (server.reply != NULL) {
             free(server.reply);
@@ -328,13 +330,15 @@ int send_all(int sockfd, size_t len, const char *reply) {
   ssize_t bytes = 0;
   int send_size = 4028;
   size_t total_sent = 0;
-  printf("file size: %ld\n", len);
+  // printf("file size: %ld\n", len);
   while (len) {
-    bytes = send(sockfd, reply, send_size, 0);
+    bytes = send(sockfd, reply, len, 0);
+    printf("b sent : %ld\n",bytes);
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
-        fprintf(stderr, "EAGAIN, bytes sent : %ld\n", total_sent);
+        usleep(1000);
+        continue;
       }
     }
     total_sent += bytes;
@@ -355,14 +359,14 @@ int send_response(http_t *request, int sockfd) {
   }
   FILE *fptr = fopen(file_path, "r");
   if (fptr == NULL) {
-    printf("NULL?\n");
+    printf("File %s not found\n", file_path);
     // handle file not found error
     // return -1 in case the local send() socket buffer is full
     return send_all(sockfd, strlen(not_found_reply), not_found_reply);
   }
   printf("sending OK reply\n");
   size_t reply_len = OK_reply(fptr, file_path, request);
-  printf("content_length: %ld\n", reply_len);
+  printf("whole_length: %ld\n", reply_len);
   return send_all(sockfd, reply_len, server.reply);
 }
 
@@ -384,7 +388,7 @@ size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
   char content_type[50] = "";
 
   get_content_type(content_type, file_path, strlen(file_path));
-  printf("content-type : %s\n", content_type);
+
   snprintf(response_header, 512,
            "%s %s %s\r\n"
            "Content-Type: %s\r\n"

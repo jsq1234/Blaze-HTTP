@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/main.dir/src/full.c.o"
-  "CMakeFiles/main.dir/src/full.c.o.d"
+  "CMakeFiles/main.dir/src/main.c.o"
+  "CMakeFiles/main.dir/src/main.c.o.d"
   "CMakeFiles/main.dir/src/utils.c.o"
   "CMakeFiles/main.dir/src/utils.c.o.d"
   "main"

@@ -7,6 +7,7 @@
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <stdint.h>
 
 int read_text_file(FILE *fptr, long f_size, char* buffer){
     size_t bytes = 0;

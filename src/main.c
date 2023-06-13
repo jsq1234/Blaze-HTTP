@@ -12,6 +12,14 @@
 
 #include "../include/utils.h"
 
+#define RED "\x1b[31m"
+#define GREEN "\x1b[32m"
+#define YELLOW "\x1b[33m"
+#define BLUE "\x1b[34m"
+#define MAGENTA "\x1b[35m"
+#define CYAN "\x1b[36m"
+#define RESET "\x1b[0m"
+
 #define MOVE(p, l, n)                                                          \
   p += n;                                                                      \
   l -= n;
@@ -52,14 +60,17 @@ typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
   char *reply;
+  char* start;
+  size_t left;
 } server_t;
 
+int count = 0;
 server_t server;
 
 void init_server(uint16_t port);
 int make_socket_nonblocking(int fd);
-int send_all(int sockfd, size_t len, const char *reply);
-int send_response(http_t *request, int sockfd);
+ssize_t send_all(int sockfd, size_t len, const char *reply, int* client_state);
+int generate_response(http_t *request, int sockfd, int* client_state);
 size_t OK_reply(FILE *fptr, const char *file_path, http_t *request);
 // =================================================================
 
@@ -126,6 +137,7 @@ void init_server(uint16_t port) {
     exit(1);
   }
   printf("server is listening...\n");
+  printf("server fd : %d\n", server.sockfd);
 }
 
 int make_socket_nonblocking(int fd) {
@@ -208,9 +220,9 @@ int run_event_loop(event_loop_t *event) {
   socklen_t in_len;
 
   for (;;) {
-    // printf("before wait\n");
+    //printf("before wait\n");
     nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, -1);
-    // printf("after wait\n");
+    //printf("after wait\n");
 
     if (nfds == -1) {
       perror("epoll_wait()");
@@ -218,140 +230,178 @@ int run_event_loop(event_loop_t *event) {
     }
 
     for (int i = 0; i < nfds; i++) {
+      char buffer[RECV_SIZE];
+      int client_closed = 0;
+
       if (event->events[i].events == EPOLLHUP) {
         fprintf(stderr, "got EPOLLUP\n");
       }
       if (event->events[i].events == EPOLLERR) {
         fprintf(stderr, "got EPOLLERR\n");
       }
-      if (event->events[i].data.fd == server.sockfd &&
-          event->events[i].events & EPOLLIN) {
-        // we recieved a new connection on the socket that the server is
-        // listening on accept all the incoming new connections
-        while (1) {
-          memset(&in_addr, 0, sizeof(in_addr));
-          in_len = sizeof(in_addr);
+      if (event->events[i].events & EPOLLIN) {
 
-          int connfd =
-              accept(server.sockfd, (struct sockaddr *)&in_addr, &in_len);
+        if (event->events[i].data.fd == server.sockfd) {
+          // we recieved a new connection on the socket that the server is
+          // listening on accept all the incoming new connections
+          while (1) {
+            memset(&in_addr, 0, sizeof(in_addr));
+            in_len = sizeof(in_addr);
 
-          if (connfd == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-              // we have accepted all the connections that we could
-              // no more connection, break out of this loop
+            int connfd =
+                accept(server.sockfd, (struct sockaddr *)&in_addr, &in_len);
+
+            if (connfd == -1) {
+              if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // we have accepted all the connections that we could
+                // no more connection, break out of this loop
+                break;
+              }
+              perror("accept()");
               break;
             }
-            perror("accept()");
-            break;
-          }
 
-          printf("New client %d connection!\n", connfd);
-          if (make_socket_nonblocking(connfd) == -1) {
-            continue;
-          }
-
-          event->ev.events = EPOLLIN | EPOLLET | EPOLLOUT ;
-          event->ev.data.fd = connfd;
-
-          if (epoll_ctl(event->epollfd, EPOLL_CTL_ADD, connfd, &event->ev) <
-              0) {
-            fprintf(stderr, "epoll set insertion error: fd=%d", connfd);
-            close(connfd);
-            continue;
-          }
-        }
-
-      // }else if (event->events[i].events & EPOLLOUT ){
-      //     printf("recieved : EPOLLOUT \n");
-      //     event->events[i].events = EPOLLIN | EPOLLET;
-      //     if( epoll_ctl(event->epollfd,EPOLL_CTL_MOD,event->events[i].data.fd,&event->events[i]) < 0 ){
-      //       perror("epoll_ctl()");
-            
-      //     }
-      }else if (event->events[i].events & EPOLLIN) {
-        // client has send some data to the socket
-        // recieve all the data at once
-        int client_fd = event->events[i].data.fd;
-        char buffer[RECV_SIZE];
-        int client_closed = 0;
-
-        while (1) {
-          char *ptr = buffer;
-          ssize_t bytes = recv(client_fd, ptr, RECV_SIZE - 1, 0);
-          if (bytes == 0) {
-            // client has closed the connection
-            // close the client socket and remove from the epoll_loop_t
-            printf("Client %d closed connection\n", client_fd);
-            client_closed = 1;
-            close(client_fd);
-            break;
-          } else if (bytes == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-              // we have read all we could
-              // break from the while loop
-              break;
-            }
-            perror("recv()");
-            break;
-          } else {
-            ptr[bytes] = '\0';
-            ptr += bytes;
-          }
-        }
-        // if client has not closed the socket
-        // only then send the reply
-        //printf("client closed var : %d\n", client_closed);
-        if (!client_closed) {
-          http_t request;
-          // parse_request returns -1 when the request is something other than
-          // GET request. In that case we send the default NOT implemented
-          // message to the client
-          if (parse_request(buffer, strlen(buffer), &request) == -1) {
-              send_all(client_fd, strlen(not_implemented_reply),not_implemented_reply);
+            printf(GREEN "New client %d connection!\n" RESET, connfd);
+            if (make_socket_nonblocking(connfd) == -1) {
               continue;
             }
-          
 
-          printf("sending response...\n");
-          send_response(&request, client_fd);
-          printf("sent\n");
+            event->ev.events = EPOLLIN | EPOLLET;
+            event->ev.data.fd = connfd;
 
-          // free the server reply which was created using malloc
-          if (server.reply != NULL) {
-            free(server.reply);
-            server.reply = NULL;
+            if (epoll_ctl(event->epollfd, EPOLL_CTL_ADD, connfd, &event->ev) <
+                0) {
+              fprintf(stderr, "epoll set insertion error: fd=%d", connfd);
+              close(connfd);
+              continue;
+            }
+          }
+        } else {
+          // client has send some data to the socket
+          // recieve all the data at once
+          int client_fd = event->events[i].data.fd;
+
+          while (1) {
+            char *ptr = buffer;
+            ssize_t bytes = recv(client_fd, ptr, RECV_SIZE - 1, 0);
+            if (bytes == 0) {
+              // client has closed the connection
+              // close the client socket and remove from the epoll_loop_t
+              printf(RED "Client %d closed connection\n" RESET, client_fd);
+              client_closed = 1;
+              // close(client_fd);
+              break;
+            } else if (bytes == -1) {
+              if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // we have read all we could
+                // break from the while loop
+                // printf("buffer : %s\n",buffer);
+                break;
+              }
+              perror("recv()");
+              break;
+            } else {
+              ptr[bytes] = '\0';
+              ptr += bytes;
+            }
+          }
+
+          //printf("recieved a the message from client %d\n", client_fd);
+          //printf("message: %s\n", buffer);
+          // if client has not closed the socket
+          // only then send the reply
+          // printf("client closed var : %d\n", client_closed);
+          http_t request;
+
+          if( parse_request(buffer,strlen(buffer),&request) == -1 ){
+            // the request is NOT a GET request;
+          }
+
+          generate_response(&request,client_fd, &client_closed);
+
+          event->events[i].events = EPOLLOUT | EPOLLET;
+
+          if( epoll_ctl(event->epollfd,EPOLL_CTL_MOD,client_fd,&event->events[i]) ){
+            perror("epoll_ctl");
           }
         }
+      }
+      if (event->events[i].events & EPOLLOUT) {
+
+        int client_fd = event->events[i].data.fd;
+        //printf("%d : EPOLLOUT (Not gonna remove | Egde-triggered) \n", client_fd);
+  
+        //printf("sending response %d ...\n", client_fd);
+
+        ssize_t bytesSnd = send_all(client_fd,server.left,server.start, &client_closed);
+
+        if( -bytesSnd > 0 ){
+          //printf("Buffer is full, continuing...\n");
+          server.left += bytesSnd;
+          server.start += -bytesSnd;
+          //printf("Bytes send: %ld, bytes left : %ld \n", -bytesSnd, server.left);
+          continue;
+        }
+        //printf("sent\n");
+        server.left -= bytesSnd;
+        //printf("left bytes : %ld\n", server.left);
+
+        if (server.reply != NULL && server.left <= 0 ) {
+          //printf("freeing memory\n");
+          free(server.reply);
+          server.reply = NULL;
+        }
+
+        if(client_closed){
+          printf("closing the client\n");
+          close(client_fd);
+          continue;
+        }
+
+        event->events[i].events = EPOLLIN | EPOLLET;
+
+        if (epoll_ctl(event->epollfd, EPOLL_CTL_MOD, event->events[i].data.fd,
+                      &event->events[i])) {
+          perror("epoll_ctl()");
+        }
+
       }
     }
   }
 }
-int send_all(int sockfd, size_t len, const char *reply) {
+ssize_t send_all(int sockfd, size_t len, const char *reply, int* client_state) {
   ssize_t bytes = 0;
   int send_size = 4028;
   size_t total_sent = 0;
   // printf("file size: %ld\n", len);
   while (len) {
-    bytes = send(sockfd, reply, len, 0);
-    //printf("b sent : %ld\n",bytes);
+    bytes = send(sockfd, reply, len, MSG_NOSIGNAL);
+    // printf("b sent : %ld\n",bytes);
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
-        //printf("sleeping...\n");
-        continue;
-      }else{
+        
+        //printf("Buffer full, wait...\n");
+        return -total_sent;
+      } else {
         perror("send()");
+        if( errno == EPIPE ){
+          *client_state = 1;
+          break;
+        }
+        printf("errno : %d\n", errno);
+        //usleep(800*1000);
       }
     }
     total_sent += bytes;
     reply += bytes;
     len -= bytes;
   }
-  //printf("total file size sent : %ld\n", total_sent);
-  return 0;
+  // printf("total file size sent : %ld\n", total_sent);
+  return total_sent;
 }
 
-int send_response(http_t *request, int sockfd) {
+int generate_response(http_t *request, int sockfd, int* client_state) {
   char *file_path = "";
 
   if (strcmp(request->url, "/") == 0) {
@@ -359,17 +409,22 @@ int send_response(http_t *request, int sockfd) {
   } else {
     file_path = &request->url[1];
   }
+
   FILE *fptr = fopen(file_path, "r");
+  
   if (fptr == NULL) {
-    printf("File %s not found\n", file_path);
+    // printf("File %s not found\n", file_path);
     // handle file not found error
     // return -1 in case the local send() socket buffer is full
-    return send_all(sockfd, strlen(not_found_reply), not_found_reply);
+    return send_all(sockfd, strlen(not_found_reply), not_found_reply, client_state);
   }
-  //printf("sending OK reply\n");
-  size_t reply_len = OK_reply(fptr, file_path, request);
-  //printf("whole_length: %ld\n", reply_len);
-  return send_all(sockfd, reply_len, server.reply);
+  // printf("sending OK reply\n");
+  server.left = OK_reply(fptr, file_path, request);
+  // printf("whole_length: %ld\n", reply_len);
+  return server.left; 
+
+  
+  return 0;
 }
 
 size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
@@ -407,6 +462,7 @@ size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
   char *ptr = server.reply + strlen(response_header);
 
   read_text_file(fptr, f_size, ptr);
+  server.start = server.reply;
 
   return reply_size;
 }

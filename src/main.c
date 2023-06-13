@@ -45,9 +45,14 @@ typedef struct http_request {
   http_header_t headers;
 } http_t;
 
-const char *not_found_reply = "HTTP/1.1 404 Not Found\r\n"
+enum {
+  NOT_FOUND = -8,
+  NOT_IMPLEMENTED, 
+};
+
+char *not_found_reply = "HTTP/1.1 404 Not Found\r\n"
                               "Content-Length: 0\r\n\r\n";
-const char *not_implemented_reply = "HTTP/1.1 203 Not implemented\r\n"
+char *not_implemented_reply = "HTTP/1.1 203 Not implemented\r\n"
                                     "Content-Length: 0\r\n\r\n";
 
 int parse_request(const char *msg, size_t len, http_t *request);
@@ -59,9 +64,9 @@ int parse_request(const char *msg, size_t len, http_t *request);
 typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
-  char *reply;
-  char* start;
-  size_t left;
+  char *reply; // pointer to the message that needs to be sent
+  char* send_ptr; // pointer to the first element of the message that needs to be sent
+  size_t left; // length of the message 
 } server_t;
 
 int count = 0;
@@ -114,7 +119,7 @@ void init_server(uint16_t port) {
   server.info.sin_port = htons(port);
   server.info.sin_addr.s_addr = INADDR_ANY;
 
-  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) <
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT , &(int){1}, sizeof(int)) <
       0) {
     perror("setsockopt()");
     exit(1);
@@ -163,7 +168,7 @@ int parse_request(const char *msg, size_t msg_len, http_t *request) {
     strcpy(request->method, "GET");
     MOVE(ptr, left, 4)
   } else {
-    return -1;
+    return NOT_IMPLEMENTED;
   }
   const char *itr = ptr;
   TRAVERSE_TILL(itr, ' ')
@@ -288,7 +293,7 @@ int run_event_loop(event_loop_t *event) {
               // client has closed the connection
               // close the client socket and remove from the epoll_loop_t
               printf(RED "Client %d closed connection\n" RESET, client_fd);
-              client_closed = 1;
+              // client_closed = 1;
               // close(client_fd);
               break;
             } else if (bytes == -1) {
@@ -308,41 +313,52 @@ int run_event_loop(event_loop_t *event) {
 
           //printf("recieved a the message from client %d\n", client_fd);
           //printf("message: %s\n", buffer);
-          // if client has not closed the socket
-          // only then send the reply
-          // printf("client closed var : %d\n", client_closed);
+        
           http_t request;
 
-          if( parse_request(buffer,strlen(buffer),&request) == -1 ){
+          if( parse_request(buffer,strlen(buffer),&request) == NOT_IMPLEMENTED ){
             // the request is NOT a GET request;
+            //server.reply = not_implemented_reply;
+            server.send_ptr = not_implemented_reply;
+            server.left = strlen(not_implemented_reply);
+
+            event->events[i].events = EPOLLOUT | EPOLLET;
+
+            if( epoll_ctl(event->epollfd,EPOLL_CTL_MOD,client_fd,&event->events[i]) ){
+                perror("epoll_ctl");
+            }
+            continue;
           }
 
-          generate_response(&request,client_fd, &client_closed);
-
+          if( generate_response(&request,client_fd, &client_closed) == NOT_FOUND ){
+            printf("sending not_found reply\n");
+            //server.reply = not_found_reply;
+            server.send_ptr = not_found_reply;
+            server.left = strlen(not_found_reply);
+          }
+        
           event->events[i].events = EPOLLOUT | EPOLLET;
 
           if( epoll_ctl(event->epollfd,EPOLL_CTL_MOD,client_fd,&event->events[i]) ){
-            perror("epoll_ctl");
+              perror("epoll_ctl");
           }
         }
       }
       if (event->events[i].events & EPOLLOUT) {
 
         int client_fd = event->events[i].data.fd;
-        //printf("%d : EPOLLOUT (Not gonna remove | Egde-triggered) \n", client_fd);
   
-        //printf("sending response %d ...\n", client_fd);
 
-        ssize_t bytesSnd = send_all(client_fd,server.left,server.start, &client_closed);
+        ssize_t bytesSnd = send_all(client_fd,server.left,server.send_ptr, &client_closed);
 
-        if( -bytesSnd > 0 ){
+        if( bytesSnd < 0 ){
           //printf("Buffer is full, continuing...\n");
           server.left += bytesSnd;
-          server.start += -bytesSnd;
+          server.send_ptr += -bytesSnd;
           //printf("Bytes send: %ld, bytes left : %ld \n", -bytesSnd, server.left);
           continue;
         }
-        //printf("sent\n");
+        printf("sent message: \n%s", server.reply);
         server.left -= bytesSnd;
         //printf("left bytes : %ld\n", server.left);
 
@@ -350,11 +366,12 @@ int run_event_loop(event_loop_t *event) {
           //printf("freeing memory\n");
           free(server.reply);
           server.reply = NULL;
+          server.send_ptr = NULL;
         }
 
         if(client_closed){
-          printf("closing the client\n");
-          close(client_fd);
+          printf("Not Closing the client\n");
+          //close(client_fd);
           continue;
         }
 
@@ -369,6 +386,8 @@ int run_event_loop(event_loop_t *event) {
     }
   }
 }
+
+
 ssize_t send_all(int sockfd, size_t len, const char *reply, int* client_state) {
   ssize_t bytes = 0;
   int send_size = 4028;
@@ -376,7 +395,7 @@ ssize_t send_all(int sockfd, size_t len, const char *reply, int* client_state) {
   // printf("file size: %ld\n", len);
   while (len) {
     bytes = send(sockfd, reply, len, MSG_NOSIGNAL);
-    // printf("b sent : %ld\n",bytes);
+    printf("b sent : %ld\n",bytes);
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
@@ -413,10 +432,10 @@ int generate_response(http_t *request, int sockfd, int* client_state) {
   FILE *fptr = fopen(file_path, "r");
   
   if (fptr == NULL) {
-    // printf("File %s not found\n", file_path);
+    printf("File %s not found\n", file_path);
     // handle file not found error
     // return -1 in case the local send() socket buffer is full
-    return send_all(sockfd, strlen(not_found_reply), not_found_reply, client_state);
+    return NOT_FOUND;
   }
   // printf("sending OK reply\n");
   server.left = OK_reply(fptr, file_path, request);
@@ -462,7 +481,7 @@ size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
   char *ptr = server.reply + strlen(response_header);
 
   read_text_file(fptr, f_size, ptr);
-  server.start = server.reply;
+  server.send_ptr = server.reply;
 
   return reply_size;
 }

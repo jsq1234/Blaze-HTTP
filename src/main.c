@@ -20,6 +20,7 @@
 #define CYAN "\x1b[36m"
 #define RESET "\x1b[0m"
 
+#define DBG 1
 #define MOVE(p, l, n)                                                          \
   p += n;                                                                      \
   l -= n;
@@ -47,13 +48,13 @@ typedef struct http_request {
 
 enum {
   NOT_FOUND = -8,
-  NOT_IMPLEMENTED, 
+  NOT_IMPLEMENTED,
 };
 
 char *not_found_reply = "HTTP/1.1 404 Not Found\r\n"
-                              "Content-Length: 0\r\n\r\n";
+                        "Content-Length: 0\r\n\r\n";
 char *not_implemented_reply = "HTTP/1.1 203 Not implemented\r\n"
-                                    "Content-Length: 0\r\n\r\n";
+                              "Content-Length: 0\r\n\r\n";
 
 int parse_request(const char *msg, size_t len, http_t *request);
 // ----------------------------------------------------------------
@@ -64,9 +65,10 @@ int parse_request(const char *msg, size_t len, http_t *request);
 typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
-  char *reply; // pointer to the message that needs to be sent
-  char* send_ptr; // pointer to the first element of the message that needs to be sent
-  size_t left; // length of the message 
+  char *reply;    // pointer to the message that needs to be sent
+  char *send_ptr; // pointer to the first element of the message that needs to
+                  // be sent
+  size_t left;    // length of the message
 } server_t;
 
 int count = 0;
@@ -74,8 +76,8 @@ server_t server;
 
 void init_server(uint16_t port);
 int make_socket_nonblocking(int fd);
-ssize_t send_all(int sockfd, size_t len, const char *reply, int* client_state);
-int generate_response(http_t *request, int sockfd, int* client_state);
+ssize_t send_all(int sockfd, size_t len, const char *reply, int *client_state);
+int generate_response(http_t *request, int sockfd);
 size_t OK_reply(FILE *fptr, const char *file_path, http_t *request);
 // =================================================================
 
@@ -119,8 +121,8 @@ void init_server(uint16_t port) {
   server.info.sin_port = htons(port);
   server.info.sin_addr.s_addr = INADDR_ANY;
 
-  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT , &(int){1}, sizeof(int)) <
-      0) {
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &(int){1},
+                 sizeof(int)) < 0) {
     perror("setsockopt()");
     exit(1);
   }
@@ -225,9 +227,16 @@ int run_event_loop(event_loop_t *event) {
   socklen_t in_len;
 
   for (;;) {
-    //printf("before wait\n");
+
+#ifdef DBG
+    printf("blocking on epoll_wait()\n");
+#endif
+
     nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, -1);
-    //printf("after wait\n");
+
+#ifdef DBG
+    printf("waking from epoll_wait()\n");
+#endif
 
     if (nfds == -1) {
       perror("epoll_wait()");
@@ -267,6 +276,7 @@ int run_event_loop(event_loop_t *event) {
             }
 
             printf(GREEN "New client %d connection!\n" RESET, connfd);
+
             if (make_socket_nonblocking(connfd) == -1) {
               continue;
             }
@@ -291,16 +301,22 @@ int run_event_loop(event_loop_t *event) {
             ssize_t bytes = recv(client_fd, ptr, RECV_SIZE - 1, 0);
             if (bytes == 0) {
               // client has closed the connection
-              // close the client socket and remove from the epoll_loop_t
+              // close the client socket
+              // if we have still some data left to send, then we can still send
+              // it it's best to close the socket AFTER we have sent the message
               printf(RED "Client %d closed connection\n" RESET, client_fd);
-              // client_closed = 1;
-              // close(client_fd);
+
+              // we indicate that the client has closed it's connection by
+              // setting the client_closed variable to 1.
+              client_closed = 1;
+
               break;
+
             } else if (bytes == -1) {
               if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // we have read all we could
                 // break from the while loop
-                // printf("buffer : %s\n",buffer);
+
                 break;
               }
               perror("recv()");
@@ -311,67 +327,72 @@ int run_event_loop(event_loop_t *event) {
             }
           }
 
-          //printf("recieved a the message from client %d\n", client_fd);
-          //printf("message: %s\n", buffer);
-        
-          http_t request;
+#ifdef DBG
+          if (client_closed) {
+            printf("Client has closed his end, nothing to receive.\n");
+          } else
+            printf("recieved a message from client %d\n", client_fd);
+#endif
+          if (!client_closed) {
+            http_t request;
 
-          if( parse_request(buffer,strlen(buffer),&request) == NOT_IMPLEMENTED ){
-            // the request is NOT a GET request;
-            //server.reply = not_implemented_reply;
-            server.send_ptr = not_implemented_reply;
-            server.left = strlen(not_implemented_reply);
+            if (parse_request(buffer, strlen(buffer), &request) ==
+                NOT_IMPLEMENTED) {
+              // the request is NOT a GET request;
+              // send a NOT_IMPLEMENTED REPLY
 
-            event->events[i].events = EPOLLOUT | EPOLLET;
+              server.send_ptr = not_implemented_reply;
+              server.left = strlen(not_implemented_reply);
 
-            if( epoll_ctl(event->epollfd,EPOLL_CTL_MOD,client_fd,&event->events[i]) ){
-                perror("epoll_ctl");
+            } else if (generate_response(&request, client_fd) == NOT_FOUND) {
+
+#ifdef DBG
+              printf("sending not_found reply\n");
+#endif
+              server.send_ptr = not_found_reply;
+              server.left = strlen(not_found_reply);
             }
-            continue;
           }
 
-          if( generate_response(&request,client_fd, &client_closed) == NOT_FOUND ){
-            printf("sending not_found reply\n");
-            //server.reply = not_found_reply;
-            server.send_ptr = not_found_reply;
-            server.left = strlen(not_found_reply);
-          }
-        
           event->events[i].events = EPOLLOUT | EPOLLET;
 
-          if( epoll_ctl(event->epollfd,EPOLL_CTL_MOD,client_fd,&event->events[i]) ){
-              perror("epoll_ctl");
+          if (epoll_ctl(event->epollfd, EPOLL_CTL_MOD, client_fd,
+                        &event->events[i])) {
+            perror("epoll_ctl");
           }
         }
       }
       if (event->events[i].events & EPOLLOUT) {
 
         int client_fd = event->events[i].data.fd;
-  
 
-        ssize_t bytesSnd = send_all(client_fd,server.left,server.send_ptr, &client_closed);
+        ssize_t bytesSnd =
+            send_all(client_fd, server.left, server.send_ptr, &client_closed);
 
-        if( bytesSnd < 0 ){
-          //printf("Buffer is full, continuing...\n");
+        if (bytesSnd < 0) {
+#ifdef DBG
+          printf("Buffer is full, continuing...\n");
+#endif
           server.left += bytesSnd;
           server.send_ptr += -bytesSnd;
-          //printf("Bytes send: %ld, bytes left : %ld \n", -bytesSnd, server.left);
           continue;
         }
-        printf("sent message: \n%s", server.reply);
-        server.left -= bytesSnd;
-        //printf("left bytes : %ld\n", server.left);
 
-        if (server.reply != NULL && server.left <= 0 ) {
-          //printf("freeing memory\n");
+        // printf("sent message: \n%s", server.reply);
+        server.left -= bytesSnd;
+
+        if (server.reply != NULL && server.left <= 0) {
+#ifdef DBG
+          printf("Sent message to the client %d\n", client_fd);
+#endif
           free(server.reply);
           server.reply = NULL;
           server.send_ptr = NULL;
         }
 
-        if(client_closed){
-          printf("Not Closing the client\n");
-          //close(client_fd);
+        if (client_closed) {
+          printf("Closing the client\n");
+          close(client_fd);
           continue;
         }
 
@@ -381,35 +402,28 @@ int run_event_loop(event_loop_t *event) {
                       &event->events[i])) {
           perror("epoll_ctl()");
         }
-
       }
     }
   }
 }
 
-
-ssize_t send_all(int sockfd, size_t len, const char *reply, int* client_state) {
+ssize_t send_all(int sockfd, size_t len, const char *reply, int *client_state) {
   ssize_t bytes = 0;
   int send_size = 4028;
   size_t total_sent = 0;
   // printf("file size: %ld\n", len);
   while (len) {
     bytes = send(sockfd, reply, len, MSG_NOSIGNAL);
-    printf("b sent : %ld\n",bytes);
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
-        
-        //printf("Buffer full, wait...\n");
+
+        // printf("Buffer full, wait...\n");
         return -total_sent;
       } else {
         perror("send()");
-        if( errno == EPIPE ){
-          *client_state = 1;
-          break;
-        }
+        *client_state = 1;
         printf("errno : %d\n", errno);
-        //usleep(800*1000);
       }
     }
     total_sent += bytes;
@@ -420,7 +434,7 @@ ssize_t send_all(int sockfd, size_t len, const char *reply, int* client_state) {
   return total_sent;
 }
 
-int generate_response(http_t *request, int sockfd, int* client_state) {
+int generate_response(http_t *request, int sockfd) {
   char *file_path = "";
 
   if (strcmp(request->url, "/") == 0) {
@@ -430,9 +444,8 @@ int generate_response(http_t *request, int sockfd, int* client_state) {
   }
 
   FILE *fptr = fopen(file_path, "r");
-  
+
   if (fptr == NULL) {
-    printf("File %s not found\n", file_path);
     // handle file not found error
     // return -1 in case the local send() socket buffer is full
     return NOT_FOUND;
@@ -440,9 +453,8 @@ int generate_response(http_t *request, int sockfd, int* client_state) {
   // printf("sending OK reply\n");
   server.left = OK_reply(fptr, file_path, request);
   // printf("whole_length: %ld\n", reply_len);
-  return server.left; 
+  return server.left;
 
-  
   return 0;
 }
 

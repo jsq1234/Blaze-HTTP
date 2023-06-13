@@ -324,8 +324,20 @@ int run_event_loop(event_loop_t *event) {
             } else {
               ptr[bytes] = '\0';
               ptr += bytes;
+
+              // The following is based on the assumption that
+              // HTTP pipelining is disabled. This server doesn't 
+              // hanlde pipelined requests and assumes that the client sends
+              // one request at once.
+              
+              if( strncmp(ptr - 4, "\r\n\r\n", 4 ) == 0 ){
+                printf("message completed\n");
+                break;
+              }
             }
           }
+
+          //printf("recieved message %d : \n%s", client_fd, buffer);
 
 #ifdef DBG
           if (client_closed) {

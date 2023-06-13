@@ -9,13 +9,14 @@ The asynchronous server runs in a event loop, polling for sockets that are ready
   
 ### Installation 
   1. Clone this repository 
-  2. Remove the contents of build folder
-    ``` rm -rf build/* ```
+  2. Create a build folder. This is where you'll run the cmake and make commands.
+    ```mkdir build```
   3. move into the build folder and execute cmake.
     ``` cd build && cmake .. ```
   4. run make 
     ``` make ```
-  5. Run the server by giving it a port to run on 
+  5. Copy the main executable to the folder which has your html, css, js files
+     and run the command by giving the port as the argument.
     ``` ./main 9999 ```
 
 ## To-do 

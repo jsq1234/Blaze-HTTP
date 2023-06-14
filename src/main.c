@@ -18,6 +18,7 @@
 // SERVER HEADER
 #define RECV_SIZE 2048
 
+
 typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
@@ -216,9 +217,10 @@ int run_event_loop(event_loop_t *event) {
           // client has send some data to the socket
           // recieve all the data at once
           int client_fd = event->events[i].data.fd;
-
+          int count = 0;
           while (1) {
             char *ptr = buffer;
+            count++;
             ssize_t bytes = recv(client_fd, ptr, RECV_SIZE - 1, 0);
             if (bytes == 0) {
               // client has closed the connection
@@ -244,8 +246,8 @@ int run_event_loop(event_loop_t *event) {
               break;
             } else {
               ptr[bytes] = '\0';
+              
               ptr += bytes;
-
               // The following is based on the assumption that
               // HTTP pipelining is disabled. This server doesn't
               // hanlde pipelined requests and assumes that the client sends
@@ -257,7 +259,6 @@ int run_event_loop(event_loop_t *event) {
               }
             }
           }
-
           // printf("recieved message %d : \n%s", client_fd, buffer);
 
 #ifdef DBG
@@ -273,7 +274,9 @@ int run_event_loop(event_loop_t *event) {
                 NOT_IMPLEMENTED) {
               // the request is NOT a GET request;
               // send a NOT_IMPLEMENTED REPLY
-
+#ifdef DBG
+              printf("sending not_implemented reply\n");
+#endif
               server.send_ptr = (unsigned char*)not_implemented_reply;
               server.left = strlen(not_implemented_reply);
 
@@ -315,6 +318,7 @@ int run_event_loop(event_loop_t *event) {
         server.left -= bytesSnd;
 
         if (server.reply != NULL && server.left <= 0) {
+
 #ifdef DBG
           printf("Sent message to the client %d\n", client_fd);
 #endif

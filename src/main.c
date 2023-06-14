@@ -62,13 +62,16 @@ int parse_request(const char *msg, size_t len, http_t *request);
 
 // SERVER HEADER
 #define RECV_SIZE 2048
+
 typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
-  char *reply;    // pointer to the message that needs to be sent
-  char *send_ptr; // pointer to the first element of the message that needs to
-                  // be sent
-  size_t left;    // length of the message
+
+  unsigned char *reply;    // pointer to the message that needs to be sent
+  unsigned char *send_ptr; /* pointer to the first element in reply
+                        that needs to be sent.
+                      */
+  size_t left;             // length of the message left to send
 } server_t;
 
 int count = 0;
@@ -76,9 +79,9 @@ server_t server;
 
 void init_server(uint16_t port);
 int make_socket_nonblocking(int fd);
-ssize_t send_all(int sockfd, size_t len, const char *reply, int *client_state);
+ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client_state);
 int generate_response(http_t *request, int sockfd);
-size_t OK_reply(FILE *fptr, const char *file_path, http_t *request);
+size_t OK_reply(FILE *fptr, const char *file_path,long f_size, http_t *request);
 // =================================================================
 
 // EPOLL HEADER
@@ -326,18 +329,18 @@ int run_event_loop(event_loop_t *event) {
               ptr += bytes;
 
               // The following is based on the assumption that
-              // HTTP pipelining is disabled. This server doesn't 
+              // HTTP pipelining is disabled. This server doesn't
               // hanlde pipelined requests and assumes that the client sends
               // one request at once.
-              
-              if( strncmp(ptr - 4, "\r\n\r\n", 4 ) == 0 ){
+
+              if (strncmp(ptr - 4, "\r\n\r\n", 4) == 0) {
                 printf("message completed\n");
                 break;
               }
             }
           }
 
-          //printf("recieved message %d : \n%s", client_fd, buffer);
+          // printf("recieved message %d : \n%s", client_fd, buffer);
 
 #ifdef DBG
           if (client_closed) {
@@ -353,7 +356,7 @@ int run_event_loop(event_loop_t *event) {
               // the request is NOT a GET request;
               // send a NOT_IMPLEMENTED REPLY
 
-              server.send_ptr = not_implemented_reply;
+              server.send_ptr = (unsigned char*)not_implemented_reply;
               server.left = strlen(not_implemented_reply);
 
             } else if (generate_response(&request, client_fd) == NOT_FOUND) {
@@ -361,7 +364,7 @@ int run_event_loop(event_loop_t *event) {
 #ifdef DBG
               printf("sending not_found reply\n");
 #endif
-              server.send_ptr = not_found_reply;
+              server.send_ptr = (unsigned char*)not_found_reply;
               server.left = strlen(not_found_reply);
             }
           }
@@ -419,7 +422,7 @@ int run_event_loop(event_loop_t *event) {
   }
 }
 
-ssize_t send_all(int sockfd, size_t len, const char *reply, int *client_state) {
+ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client_state) {
   ssize_t bytes = 0;
   int send_size = 4028;
   size_t total_sent = 0;
@@ -462,23 +465,25 @@ int generate_response(http_t *request, int sockfd) {
     // return -1 in case the local send() socket buffer is full
     return NOT_FOUND;
   }
-  // printf("sending OK reply\n");
-  server.left = OK_reply(fptr, file_path, request);
-  // printf("whole_length: %ld\n", reply_len);
-  return server.left;
-
-  return 0;
-}
-
-size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
 
   struct stat file_info;
+
   if (stat(file_path, &file_info) < 0) {
     perror("stat()");
     return -1;
   }
 
   long f_size = file_info.st_size;
+
+  server.left = OK_reply(fptr, file_path, f_size, request);
+
+  return server.left;
+
+  return 0;
+}
+
+
+size_t OK_reply(FILE *fptr, const char *file_path, long f_size, http_t *request) {
 
   char response_header[512];
   response_header[0] = '\0';
@@ -487,7 +492,7 @@ size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
   const char *status_msg = "OK";
   char content_type[50] = "";
 
-  get_content_type(content_type, file_path, strlen(file_path));
+  get_content_type(content_type, file_path);
 
   snprintf(response_header, 512,
            "%s %s %s\r\n"
@@ -495,17 +500,29 @@ size_t OK_reply(FILE *fptr, const char *file_path, http_t *request) {
            "Conntection: keep-alive\r\n"
            "Content-Length: %ld\r\n\r\n",
            request->version, status_code, status_msg, content_type, f_size);
-  // +1 for null terminating character
-  size_t reply_size = strlen(response_header) + f_size + 1;
+  //+1 for null terminating character
+  int res_len = strlen(response_header);
+  size_t reply_size = res_len + f_size + 1;
 
-  // DO NOT FORGET TO FREE AFTER SENDING THE REPLY TO THE CLIENT!
-  server.reply = (char *)malloc(sizeof(char) * reply_size);
+  if (reply_size >= LARGE_FILE) {
+    // DO NOT FORGET TO FREE AFTER SENDING REPLY TO THE CLIENT
+    server.reply = (unsigned char *)malloc(sizeof(unsigned char) * reply_size);
 
-  strcpy(server.reply, response_header);
-  char *ptr = server.reply + strlen(response_header);
+    strcpy((char *)server.reply, response_header);
 
-  read_text_file(fptr, f_size, ptr);
-  server.send_ptr = server.reply;
+    read_large_file(fptr, f_size, server.reply + res_len);
+
+    server.send_ptr = server.reply;
+  } else {
+    // DO NOT FORGET TO FREE AFTER SENDING THE REPLY TO THE CLIENT!
+    server.reply = (unsigned char *)malloc(sizeof(unsigned char) * reply_size);
+
+    strcpy((char *)server.reply, response_header);
+
+    read_file(fptr, f_size, server.reply + res_len);
+
+    server.send_ptr = server.reply;
+  }
 
   return reply_size;
 }

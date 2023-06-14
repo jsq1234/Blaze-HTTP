@@ -25,6 +25,19 @@ int read_text_file(FILE *fptr, long f_size, char* buffer){
     return 0;
 }
 
+int read_large_file(FILE* fptr, long f_size, unsigned char* buffer){
+    size_t bytes = 0;
+    unsigned char* ptr = buffer;
+
+    while(1){
+        bytes = fread(ptr,sizeof(unsigned char),BIG_BUF,fptr);
+        if( bytes != BIG_BUF ){
+            break;
+        }
+        ptr += bytes;
+    }
+    return 0;
+}
 
 const char* get_file_from_url(char *url, size_t url_len){
     char* ptr = url + url_len - 1;

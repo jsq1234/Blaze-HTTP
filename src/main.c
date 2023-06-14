@@ -252,7 +252,7 @@ int run_event_loop(event_loop_t *event) {
               // one request at once.
 
               if (strncmp(ptr - 4, "\r\n\r\n", 4) == 0) {
-                printf("message completed\n");
+                printf("message recieved\n");
                 break;
               }
             }

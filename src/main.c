@@ -13,20 +13,7 @@
 #include "../include/utils.h"
 #include "../include/http.h"
 
-#define RED "\x1b[31m"
-#define GREEN "\x1b[32m"
-#define YELLOW "\x1b[33m"
-#define BLUE "\x1b[34m"
-#define MAGENTA "\x1b[35m"
-#define CYAN "\x1b[36m"
-#define RESET "\x1b[0m"
 
-#define DBG 1
-
-// HTTP HEADER
-
-// ----------------------------------------------------------------
-// ----------------------------------------------------------------
 
 // SERVER HEADER
 #define RECV_SIZE 2048
@@ -37,8 +24,8 @@ typedef struct server_ds {
 
   unsigned char *reply;    // pointer to the message that needs to be sent
   unsigned char *send_ptr; /* pointer to the first element in reply
-                        that needs to be sent.
-                      */
+                              that needs to be sent.
+                            */
   size_t left;             // length of the message left to send
 } server_t;
 

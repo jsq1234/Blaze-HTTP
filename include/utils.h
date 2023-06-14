@@ -5,6 +5,19 @@
 #include <stdio.h>
 #include <string.h>
 
+
+// Color Codes -> 
+
+#define RED "\x1b[31m"
+#define GREEN "\x1b[32m"
+#define YELLOW "\x1b[33m"
+#define BLUE "\x1b[34m"
+#define MAGENTA "\x1b[35m"
+#define CYAN "\x1b[36m"
+#define RESET "\x1b[0m"
+
+
+
 #define RD_BUF 4*1024 // 4KB for small files.
 #define BIG_BUF 16*1024 // 16 KB buffer for reading large file
 #define LARGE_FILE 1024*1024 // Treat 1 MB file as large for now, and use BIG_BUF in fread()

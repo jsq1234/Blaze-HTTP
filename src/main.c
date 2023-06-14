@@ -42,7 +42,7 @@ size_t OK_reply(FILE *fptr, const char *file_path,long f_size, http_t *request);
 
 // EPOLL HEADER
 
-#define MAX_EVENTS 100
+#define MAX_EVENTS 10000
 
 typedef struct event_loop {
   int epollfd;
@@ -98,7 +98,7 @@ void init_server(uint16_t port) {
 
   server.sockfd = sockfd;
 
-  if (listen(sockfd, 100) < 0) {
+  if (listen(sockfd, 10000) < 0) {
     perror("listen()");
     exit(1);
   }
@@ -197,7 +197,7 @@ int run_event_loop(event_loop_t *event) {
               break;
             }
 
-            printf(GREEN "New client %d connection!\n" RESET, connfd);
+            //printf(GREEN "New client %d connection!\n" RESET, connfd);
 
             if (make_socket_nonblocking(connfd) == -1) {
               continue;
@@ -227,7 +227,7 @@ int run_event_loop(event_loop_t *event) {
               // close the client socket
               // if we have still some data left to send, then we can still send
               // it it's best to close the socket AFTER we have sent the message
-              printf(RED "Client %d closed connection\n" RESET, client_fd);
+             //printf(RED "Client %d closed connection\n" RESET, client_fd);
 
               // we indicate that the client has closed it's connection by
               // setting the client_closed variable to 1.
@@ -254,7 +254,7 @@ int run_event_loop(event_loop_t *event) {
               // one request at once.
 
               if (strncmp(ptr - 4, "\r\n\r\n", 4) == 0) {
-                printf("message recieved\n");
+             //printf("message recieved\n");
                 break;
               }
             }
@@ -318,7 +318,7 @@ int run_event_loop(event_loop_t *event) {
         server.left -= bytesSnd;
 
         if (server.reply != NULL && server.left <= 0) {
-
+        //printf("message sent to client\n");
 #ifdef DBG
           printf("Sent message to the client %d\n", client_fd);
 #endif
@@ -328,7 +328,7 @@ int run_event_loop(event_loop_t *event) {
         }
 
         if (client_closed) {
-          printf("Closing the client\n");
+//          printf("Closing the client\n");
           close(client_fd);
           continue;
         }

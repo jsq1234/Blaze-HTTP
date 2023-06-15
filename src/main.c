@@ -13,7 +13,6 @@
 #include "../include/utils.h"
 #include "../include/http.h"
 
-#define DBG 
 
 // SERVER HEADER
 #define RECV_SIZE 2048
@@ -374,6 +373,7 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
         perror("send()");
         *client_state = 1;
         printf("errno : %d\n", errno);
+        break;
       }
     }
     total_sent += bytes;

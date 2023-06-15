@@ -1,6 +1,7 @@
 #include "../include/utils.h"
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,36 +10,50 @@
 #include <unistd.h>
 #include <stdint.h>
 
-int read_file(FILE *fptr, long f_size, unsigned char* buffer){
-    size_t bytes = 0;
-    unsigned char* ptr = buffer;
-    
-    while(1){
-        bytes = fread(ptr,sizeof(char),RD_BUF,fptr);
-        ptr[bytes] = '\0';
-        if( bytes != RD_BUF ) {
+size_t read_file(FILE* fptr, size_t f_size, unsigned char* dest)
+{
+   size_t total_bytes = 0;
+    while (f_size) {
+        size_t chunk = f_size < BIG_BUF ? f_size : BIG_BUF;
+        size_t n = fread(&dest[total_bytes], 1, chunk, fptr);
+        if (!n)
             break;
-        }
-        ptr += bytes;
+        total_bytes += n;
+        f_size -= n;
     }
-
-    return 0;
+    dest[total_bytes] = '\0';
+    return total_bytes;
 }
-
-int read_large_file(FILE* fptr, long f_size, unsigned char* buffer){
+size_t read_large_file(FILE* fptr, size_t f_size, unsigned char* dest)
+{
+   size_t total_bytes = 0;
+    while (f_size) {
+        size_t chunk = f_size < BIG_BUF ? f_size : BIG_BUF;
+        size_t n = fread(&dest[total_bytes], 1, chunk, fptr);
+        if (!n)
+            break;
+        total_bytes += n;
+        f_size -= n;
+    }
+    dest[total_bytes] = '\0';
+    return total_bytes;
+}
+/*
+size_t read_large_file(FILE* fptr, long f_size, unsigned char* buffer){
     size_t bytes = 0;
     unsigned char* ptr = buffer;
-
+    size_t total_bytes = 0;
     while(1){
-        bytes = fread(ptr,sizeof(unsigned char),BIG_BUF,fptr);
+        bytes = fread(ptr,1,BIG_BUF,fptr);
+        total_bytes += bytes;
         if( bytes != BIG_BUF ){
             break;
         }
         ptr += bytes;
     }
-    return 0;
+    return total_bytes;
 }
-
+ */ 
 const char* get_file_from_url(char *url, size_t url_len){
     char* ptr = url + url_len - 1;
     while( *ptr != '.' ) --ptr;

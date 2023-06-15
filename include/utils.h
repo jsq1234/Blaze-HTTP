@@ -23,9 +23,10 @@
 #define LARGE_FILE 1024*1024 // Treat 1 MB file as large for now, and use BIG_BUF in fread()
 
 // use for text files that are small ( < LARGE_FILE )
-int read_file(FILE* fptr, long f_size, unsigned char* buf);
-// use for large files.
-int read_large_file(FILE* fptr, long f_size, unsigned char* buf);
+size_t read_file(FILE* fptr, size_t f_size, unsigned char* buf);
+// use for large files
+//
+size_t read_large_file(FILE* fptr, size_t f_size, unsigned char* buf);
 
 const char* get_file_from_url(char* url, size_t url_size);
 

@@ -18,7 +18,6 @@
 // SERVER HEADER
 #define RECV_SIZE 2048
 
-
 typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
@@ -30,7 +29,8 @@ typedef struct server_ds {
   size_t left;             // length of the message left to send
 } server_t;
 
-int count = 0;
+int mcount = 0;
+int fcount = 0;
 server_t server;
 
 void init_server(uint16_t port);
@@ -154,8 +154,12 @@ int run_event_loop(event_loop_t *event) {
     printf("blocking on epoll_wait()\n");
 #endif
 
-    nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, -1);
+    nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, 20000);
 
+    if( nfds == 0 ){
+      printf("timeout occured. Exiting...\n");
+      return 0;
+    }
 #ifdef DBG
     printf("waking from epoll_wait()\n");
 #endif
@@ -196,9 +200,11 @@ int run_event_loop(event_loop_t *event) {
               perror("accept()");
               break;
             }
+            #ifdef DBG
 
-            //printf(GREEN "New client %d connection!\n" RESET, connfd);
+            printf(GREEN "New client %d connection!\n" RESET, connfd);
 
+            #endif
             if (make_socket_nonblocking(connfd) == -1) {
               continue;
             }
@@ -227,8 +233,11 @@ int run_event_loop(event_loop_t *event) {
               // close the client socket
               // if we have still some data left to send, then we can still send
               // it it's best to close the socket AFTER we have sent the message
-             //printf(RED "Client %d closed connection\n" RESET, client_fd);
+              #ifdef DBG
 
+              printf(RED "Client %d closed connection\n" RESET, client_fd);
+                
+              #endif
               // we indicate that the client has closed it's connection by
               // setting the client_closed variable to 1.
               client_closed = 1;
@@ -316,19 +325,24 @@ int run_event_loop(event_loop_t *event) {
 
         // printf("sent message: \n%s", server.reply);
         server.left -= bytesSnd;
-
+      
         if (server.reply != NULL && server.left <= 0) {
         //printf("message sent to client\n");
 #ifdef DBG
           printf("Sent message to the client %d\n", client_fd);
 #endif
+          fcount++;
           free(server.reply);
           server.reply = NULL;
           server.send_ptr = NULL;
         }
 
         if (client_closed) {
-//          printf("Closing the client\n");
+
+#ifdef DBG
+          printf("Closing the client\n");
+#endif
+
           close(client_fd);
           continue;
         }
@@ -346,7 +360,6 @@ int run_event_loop(event_loop_t *event) {
 
 ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client_state) {
   ssize_t bytes = 0;
-  int send_size = 4028;
   size_t total_sent = 0;
   // printf("file size: %ld\n", len);
   while (len) {
@@ -354,9 +367,10 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
-
-        // printf("Buffer full, wait...\n");
-        return -total_sent;
+        #ifdef DBG
+        printf("Buffer full, wait...\n");
+        #endif
+        break;
       } else {
         perror("send()");
         *client_state = 1;
@@ -399,9 +413,10 @@ int generate_response(http_t *request, int sockfd) {
 
   server.left = OK_reply(fptr, file_path, f_size, request);
 
+  fclose(fptr);
+
   return server.left;
 
-  return 0;
 }
 
 
@@ -428,20 +443,36 @@ size_t OK_reply(FILE *fptr, const char *file_path, long f_size, http_t *request)
 
   if (reply_size >= LARGE_FILE) {
     // DO NOT FORGET TO FREE AFTER SENDING REPLY TO THE CLIENT
-    server.reply = (unsigned char *)malloc(sizeof(unsigned char) * reply_size);
+    server.reply = calloc(reply_size,1);
+    
+    if( server.reply ==  NULL ){
+      fprintf(stderr, "Couldn't allocate memory\n");
+      return -1;
+    }
 
+    
     strcpy((char *)server.reply, response_header);
 
-    read_large_file(fptr, f_size, server.reply + res_len);
+    size_t rdbytes = 0;
+    
+    rdbytes = read_large_file(fptr, f_size, server.reply + res_len);
 
     server.send_ptr = server.reply;
+  
   } else {
     // DO NOT FORGET TO FREE AFTER SENDING THE REPLY TO THE CLIENT!
-    server.reply = (unsigned char *)malloc(sizeof(unsigned char) * reply_size);
+    server.reply = calloc(reply_size,1);
+    mcount++;
 
+
+    if( server.reply ==  NULL ){
+      fprintf(stderr, "Couldn't allocate memory\n");
+    }
     strcpy((char *)server.reply, response_header);
-
-    read_file(fptr, f_size, server.reply + res_len);
+    
+    size_t rdBytes = 0;
+    
+    rdBytes = read_file(fptr, f_size, server.reply + res_len);
 
     server.send_ptr = server.reply;
   }

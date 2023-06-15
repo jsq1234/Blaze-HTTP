@@ -154,12 +154,8 @@ int run_event_loop(event_loop_t *event) {
     printf("blocking on epoll_wait()\n");
 #endif
 
-    nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, 20000);
+    nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, -1);
 
-    if( nfds == 0 ){
-      printf("timeout occured. Exiting...\n");
-      return 0;
-    }
 #ifdef DBG
     printf("waking from epoll_wait()\n");
 #endif

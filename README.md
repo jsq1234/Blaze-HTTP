@@ -8,10 +8,9 @@ The asynchronous server runs in a event loop, polling for sockets that are ready
   There aren't a lot of requirement. Just ensure that cmake is installed and you are using linux. 
   
 ### Benchmark
-    A total of 100K requests were fired to the server, with 10K concurrent requests. Each GET request fetched
-    929KB html file. The server can handle 5127.81 requests/sec. 
-
-    <img src="benchmark.png", height="200", width="500">
+A total of 100K requests were fired to the server, with 10K concurrent requests. Each GET request fetched
+929KB html file. The server can handle 5127.81 requests/sec. 
+<img src="benchmark.png", height="200", width="500">
 
 ### Installation 
   1. Clone this repository 

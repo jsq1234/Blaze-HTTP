@@ -10,8 +10,8 @@ The asynchronous server runs in a event loop, polling for sockets that are ready
 ### Benchmark
 A total of 100K requests were fired to the server, with 10K concurrent requests. Each GET request fetched
 929KB html file. The server can handle 5127.81 requests/sec. 
-<img src="benchmark.png", height="200", width="500">
 
+![image](benchmark.png)
 ### Installation 
   1. Clone this repository 
   2. Create a build folder. This is where you'll run the cmake and make commands.

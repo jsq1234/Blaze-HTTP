@@ -23,5 +23,5 @@ The asynchronous server runs in a event loop, polling for sockets that are ready
   1. Add support for POST request
   2. Validation of HTTP request (it currently doesn't check if your request is in a valid format)
   3. Better support for sending large files
-  4. Increase memory efficiency ( possibly by using circular buffers )
+  4. Increase memory efficiency 
  

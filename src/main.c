@@ -13,7 +13,7 @@
 #include "../include/utils.h"
 #include "../include/http.h"
 
-
+#define DBG 
 
 // SERVER HEADER
 #define RECV_SIZE 2048
@@ -151,13 +151,13 @@ int run_event_loop(event_loop_t *event) {
   for (;;) {
 
 #ifdef DBG
-    printf("blocking on epoll_wait()\n");
+ //    printf("blocking on epoll_wait()\n");
 #endif
 
     nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, -1);
 
 #ifdef DBG
-    printf("waking from epoll_wait()\n");
+ //   printf("waking from epoll_wait()\n");
 #endif
 
     if (nfds == -1) {
@@ -264,7 +264,8 @@ int run_event_loop(event_loop_t *event) {
               }
             }
           }
-          // printf("recieved message %d : \n%s", client_fd, buffer);
+          
+          //printf("recieved message %d : \n%s", client_fd, buffer);
 
 #ifdef DBG
           if (client_closed) {
@@ -360,13 +361,15 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
   // printf("file size: %ld\n", len);
   while (len) {
     bytes = send(sockfd, reply, len, MSG_NOSIGNAL);
+    //printf("bytes sent : %ld\n", bytes);
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
+
         #ifdef DBG
         printf("Buffer full, wait...\n");
         #endif
-        break;
+        return -total_sent;
       } else {
         perror("send()");
         *client_state = 1;

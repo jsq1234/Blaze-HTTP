@@ -365,8 +365,8 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
 
+        // printf("Buffer full, wait...\n");
         #ifdef DBG
-        printf("Buffer full, wait...\n");
         #endif
         return -total_sent;
       } else {

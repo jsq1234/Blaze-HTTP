@@ -12,10 +12,13 @@
 
 #include "../include/utils.h"
 #include "../include/http.h"
+#include "../include/logger.h"
 
 
 // SERVER HEADER
 #define RECV_SIZE 2048
+
+logger_t logger;
 
 typedef struct server_ds {
   int sockfd;
@@ -202,8 +205,11 @@ int run_event_loop(event_loop_t *event) {
               break;
             }
             #ifdef DBG
-
-            printf(GREEN "New client %d connection!\n" RESET, connfd);
+            
+            char log_msg[150];
+            snprintf(log_msg,150,GREEN "New client %d connection!" RESET, connfd);
+            log_message(&logger,log_msg);
+//            printf(GREEN "New client %d connection!\n" RESET, connfd);
 
             #endif
             if (make_socket_nonblocking(connfd) == -1) {

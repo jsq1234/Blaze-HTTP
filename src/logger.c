@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#include "logger.h"
+#include "../include/logger.h"
 
 static
 void init_message_queue(message_queue_t* mq){
@@ -73,7 +73,7 @@ void* logger_thread(void* param){
         message_node_t* node = inactive_queue->head;
         
         while(node){
-
+            printf("logging..\n");
             fprintf(log->file,"%s\n",node->msg);
             fflush(log->file);
 

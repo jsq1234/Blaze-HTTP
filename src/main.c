@@ -66,6 +66,10 @@ int main(int argc, char **argv) {
   event_loop_t event;
   init_loop(&event);
 
+  if( init_logger(&logger,"log.txt") < 0 ){
+      fprintf(stderr,"logger initialization failed.\n");
+  }
+
   run_event_loop(&event);
 }
 
@@ -204,12 +208,15 @@ int run_event_loop(event_loop_t *event) {
               perror("accept()");
               break;
             }
+            char log_msg[150];
+            
+            snprintf(log_msg,150, "New client %d connection!", connfd);
+            
+            log_message(&logger,log_msg);
             #ifdef DBG
             
-            char log_msg[150];
-            snprintf(log_msg,150,GREEN "New client %d connection!" RESET, connfd);
-            log_message(&logger,log_msg);
-//            printf(GREEN "New client %d connection!\n" RESET, connfd);
+
+            printf(GREEN "New client %d connection!\n" RESET, connfd);
 
             #endif
             if (make_socket_nonblocking(connfd) == -1) {

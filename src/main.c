@@ -153,7 +153,13 @@ int run_event_loop(event_loop_t *event) {
  //    printf("blocking on epoll_wait()\n");
 #endif
 
-    nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, -1);
+    nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, 5000);
+
+    if( nfds == 0 ){
+        printf("timeout! Closing..\n");
+        close(server.sockfd);
+        return 0;
+    }
 
 #ifdef DBG
  //   printf("waking from epoll_wait()\n");

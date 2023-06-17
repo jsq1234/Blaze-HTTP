@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
+#include <sys/sendfile.h>
 #include "../include/utils.h"
 #include "../include/http.h"
 #include "../include/logger.h"
@@ -385,8 +385,7 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
         // the send() buffer is full, retry it later
 
         // printf("Buffer full, wait...\n");
-        #ifdef DBG
-        #endif
+
         return -total_sent;
       } else {
         perror("send()");

@@ -208,11 +208,11 @@ int run_event_loop(event_loop_t *event) {
               perror("accept()");
               break;
             }
-            char log_msg[150];
+            //char log_msg[150];
             
-            snprintf(log_msg,150, "New client %d connection!", connfd);
+            //snprintf(log_msg,150, "New client %d connection!", connfd);
             
-            log_message(&logger,log_msg);
+            //log_message(&logger,log_msg);
             #ifdef DBG
             
             printf(GREEN "New client %d connection!\n" RESET, connfd);

@@ -215,8 +215,8 @@ int run_event_loop(event_loop_t *event) {
             log_message(&logger,log_msg);
             #ifdef DBG
             
-
             printf(GREEN "New client %d connection!\n" RESET, connfd);
+
 
             #endif
             if (make_socket_nonblocking(connfd) == -1) {

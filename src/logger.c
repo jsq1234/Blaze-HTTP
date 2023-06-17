@@ -73,7 +73,7 @@ void* logger_thread(void* param){
         message_node_t* node = inactive_queue->head;
         
         while(node){
-            printf("logging..\n");
+            
             fprintf(log->file,"%s\n",node->msg);
             fflush(log->file);
 

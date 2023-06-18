@@ -13,7 +13,7 @@
 #include "../include/utils.h"
 #include "../include/http.h"
 #include "../include/logger.h"
-
+#define DBG
 
 // SERVER HEADER
 #define RECV_SIZE 2048
@@ -157,7 +157,7 @@ int run_event_loop(event_loop_t *event) {
   for (;;) {
 
 #ifdef DBG
- //    printf("blocking on epoll_wait()\n");
+     printf("blocking on epoll_wait()\n");
 #endif
 
     nfds = epoll_wait(event->epollfd, event->events, MAX_EVENTS, 5000);
@@ -169,7 +169,7 @@ int run_event_loop(event_loop_t *event) {
     }
 
 #ifdef DBG
- //   printf("waking from epoll_wait()\n");
+    printf("waking from epoll_wait()\n");
 #endif
 
     if (nfds == -1) {
@@ -379,7 +379,10 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
   // printf("file size: %ld\n", len);
   while (len) {
     bytes = send(sockfd, reply, len, MSG_NOSIGNAL);
-    //printf("bytes sent : %ld\n", bytes);
+
+#ifdef DBG
+        printf("bytes sent : %ld\n", bytes);
+#endif
     if (bytes == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later

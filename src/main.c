@@ -39,6 +39,7 @@ int make_socket_nonblocking(int fd);
 ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client_state);
 int generate_response(http_t *request, int sockfd);
 size_t OK_reply(FILE *fptr, const char *file_path,long f_size, http_t *request);
+ssize_t send_file(int sockfd, int file_fd, size_t len);
 // =================================================================
 
 // EPOLL HEADER
@@ -372,10 +373,36 @@ int run_event_loop(event_loop_t *event) {
   }
 }
 
+// send len bytes of a file identified by file_fd to sockfd 
+ssize_t send_file(int sockfd, int file_fd, size_t len){
+    
+    ssize_t bytes = 0;
+    size_t total_sent = 0;
+
+    while(len){
+        bytes = sendfile(sockfd,file_fd,NULL,len);
+        if( bytes == -1 ){
+            if( errno == EAGAIN || errno == EWOULDBLOCK ){
+                // the kernel buffer is full, wait for it to free up a little
+                // send later 
+
+                return -total_sent;
+            }else{
+                perror("send()");
+            }
+        }
+
+        total_sent += bytes;
+        len -= bytes;
+    }
+
+    return total_sent;
+}
 ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client_state) {
+
   ssize_t bytes = 0;
   size_t total_sent = 0;
-  // printf("file size: %ld\n", len);
+
   while (len) {
     bytes = send(sockfd, reply, len, MSG_NOSIGNAL);
 
@@ -386,13 +413,14 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // the send() buffer is full, retry it later
 
-        // printf("Buffer full, wait...\n");
-
+#ifdef DBG
+        printf("Buffer full, wait...\n");
+#endif
         return -total_sent;
       } else {
         perror("send()");
         *client_state = 1;
-        printf("errno : %d\n", errno);
+        //printf("errno : %d\n", errno);
         break;
       }
     }

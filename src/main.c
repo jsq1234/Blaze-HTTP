@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <signal.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -19,6 +20,7 @@
 
 logger_t logger;
 
+int buf_count = 0;
 char response_header[512];
 
 typedef struct server_ds {
@@ -45,6 +47,7 @@ ssize_t send_file(int sockfd, int file_fd, size_t len, int* client_state);
 size_t generate_ok_header(http_t *request, const char* file_path, long f_size);
 // =================================================================
 
+void signal_handler(int s){ }
 // EPOLL HEADER
 
 #define MAX_EVENTS 10000
@@ -63,6 +66,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Usage : %s [port]\n", argv[0]);
     exit(1);
   }
+  signal(SIGPIPE, signal_handler);
 
   uint16_t port = atoi(argv[1]);
   init_server(port);
@@ -351,9 +355,25 @@ int run_event_loop(event_loop_t *event) {
 
         bytesSnd = send_file(client_fd,server.file_fd,server.f_size, &client_closed);
 
+        //printf("bytes sent using sendfile(): %ld\n", bytesSnd);
         // now that we have sent the file, we will close it 
+        if (bytesSnd < 0) {
+            buf_count++;
+            //printf("Buffer is full, continuing... %d\n", buf_count);
+#ifdef DBG
+#endif
+          server.f_size += bytesSnd;
+          continue;
+        }
+        
+        server.f_size -= bytesSnd;
 
-        close(server.file_fd);
+        if(!server.f_size){
+           // printf("sent all file...\n");   
+            close(server.file_fd);
+        }else{
+            continue;
+        }
 
         if (client_closed) {
 
@@ -389,10 +409,10 @@ ssize_t send_file(int sockfd, int file_fd, size_t len, int* client_state){
             if( errno == EAGAIN || errno == EWOULDBLOCK ){
                 // the kernel buffer is full, wait for it to free up a little
                 // send later 
-                printf("Kernel buffer full!\n");
+                //printf("Kernel buffer full!\n");
                 return -total_sent;
             }else{
-           //     perror("send_file()");
+                perror("send_file()");
                 *client_state = 1;
                 break;
             }

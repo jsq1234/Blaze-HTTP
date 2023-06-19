@@ -19,6 +19,7 @@
 
 logger_t logger;
 
+  char response_header[512];
 typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
@@ -342,7 +343,8 @@ int run_event_loop(event_loop_t *event) {
         server.left -= bytesSnd;
       
         if (server.reply != NULL && server.left <= 0) {
-        //printf("message sent to client\n");
+            printf("message sent to client\n");
+            printf("message : \n%s\n", server.reply);
 #ifdef DBG
           printf("Sent header to the client %d\n", client_fd);
 #endif
@@ -351,7 +353,7 @@ int run_event_loop(event_loop_t *event) {
         }
 
         // now that we have sent all the header, we will send the file
-
+        
         if (client_closed) {
 
 #ifdef DBG
@@ -444,7 +446,7 @@ int generate_response(http_t *request, int sockfd){
   struct stat file_info;
 
   if (stat(file_path, &file_info) < 0) {
-      if(errno ==  ENOENT ){
+      if( errno ==  ENOENT ){
           // ENONET indicates file/directory not found error
           return NOT_FOUND;
       }else{
@@ -465,7 +467,6 @@ int generate_response(http_t *request, int sockfd){
 
 size_t generate_ok_header(http_t *request, const char* file_path, long f_size) {
 
-  char response_header[512];
   response_header[0] = '\0';
 
   const char *status_code = "200";

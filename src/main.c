@@ -1,3 +1,5 @@
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <signal.h>
 #include <errno.h>
@@ -221,6 +223,11 @@ int run_event_loop(event_loop_t *event) {
             printf(GREEN "New client %d connection!\n" RESET, connfd);
 
             #endif
+            
+            if( setsockopt(connfd,SOL_TCP,TCP_NODELAY,&(int){1},sizeof(int)) < 0 ){
+                perror("error in tcp no delay\n");
+                
+            }
             if (make_socket_nonblocking(connfd) == -1) {
               continue;
             }

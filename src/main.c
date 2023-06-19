@@ -13,7 +13,6 @@
 #include "../include/utils.h"
 #include "../include/http.h"
 #include "../include/logger.h"
-#define DBG
 
 // SERVER HEADER
 #define RECV_SIZE 2048

@@ -38,8 +38,8 @@ void init_server(uint16_t port);
 int make_socket_nonblocking(int fd);
 ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client_state);
 int generate_response(http_t *request, int sockfd);
-size_t OK_reply(FILE *fptr, const char *file_path,long f_size, http_t *request);
 ssize_t send_file(int sockfd, int file_fd, size_t len);
+size_t generate_ok_header(http_t *request, const char* file_path, long f_size);
 // =================================================================
 
 // EPOLL HEADER
@@ -326,8 +326,9 @@ int run_event_loop(event_loop_t *event) {
 
         int client_fd = event->events[i].data.fd;
 
-        ssize_t bytesSnd =
-            send_all(client_fd, server.left, server.send_ptr, &client_closed);
+        ssize_t bytesSnd = 0;
+
+        bytesSnd = send_all(client_fd, server.left, server.send_ptr, &client_closed);
 
         if (bytesSnd < 0) {
 #ifdef DBG
@@ -337,20 +338,19 @@ int run_event_loop(event_loop_t *event) {
           server.send_ptr += -bytesSnd;
           continue;
         }
-
-        // printf("sent message: \n%s", server.reply);
+        
         server.left -= bytesSnd;
       
         if (server.reply != NULL && server.left <= 0) {
         //printf("message sent to client\n");
 #ifdef DBG
-          printf("Sent message to the client %d\n", client_fd);
+          printf("Sent header to the client %d\n", client_fd);
 #endif
-          fcount++;
-          free(server.reply);
           server.reply = NULL;
           server.send_ptr = NULL;
         }
+
+        // now that we have sent all the header, we will send the file
 
         if (client_closed) {
 
@@ -432,7 +432,7 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
   return total_sent;
 }
 
-int generate_response(http_t *request, int sockfd) {
+int generate_response(http_t *request, int sockfd){ 
   char *file_path = "";
 
   if (strcmp(request->url, "/") == 0) {
@@ -441,33 +441,29 @@ int generate_response(http_t *request, int sockfd) {
     file_path = &request->url[1];
   }
 
-  FILE *fptr = fopen(file_path, "r");
-
-  if (fptr == NULL) {
-    // handle file not found error
-    // return -1 in case the local send() socket buffer is full
-    return NOT_FOUND;
-  }
-
   struct stat file_info;
 
   if (stat(file_path, &file_info) < 0) {
-    perror("stat()");
-    return -1;
+      if(errno ==  ENOENT ){
+          // ENONET indicates file/directory not found error
+          return NOT_FOUND;
+      }else{
+        // to be changed at a later date...  
+        perror("stat()");
+        return -1;
+      }
   }
 
   long f_size = file_info.st_size;
 
-  server.left = OK_reply(fptr, file_path, f_size, request);
-
-  fclose(fptr);
+  server.left = generate_ok_header(request,file_path,f_size);
 
   return server.left;
 
 }
 
 
-size_t OK_reply(FILE *fptr, const char *file_path, long f_size, http_t *request) {
+size_t generate_ok_header(http_t *request, const char* file_path, long f_size) {
 
   char response_header[512];
   response_header[0] = '\0';
@@ -478,51 +474,21 @@ size_t OK_reply(FILE *fptr, const char *file_path, long f_size, http_t *request)
 
   get_content_type(content_type, file_path);
 
+  // creates the generic OK response
+  // The content-length is important, it will tell the client how much bytes it should read
   snprintf(response_header, 512,
            "%s %s %s\r\n"
            "Content-Type: %s\r\n"
            "Conntection: keep-alive\r\n"
            "Content-Length: %ld\r\n\r\n",
            request->version, status_code, status_msg, content_type, f_size);
-  //+1 for null terminating character
-  int res_len = strlen(response_header);
-  size_t reply_size = res_len + f_size + 1;
 
-  if (reply_size >= LARGE_FILE) {
-    // DO NOT FORGET TO FREE AFTER SENDING REPLY TO THE CLIENT
-    server.reply = calloc(reply_size,1);
-    
-    if( server.reply ==  NULL ){
-      fprintf(stderr, "Couldn't allocate memory\n");
-      return -1;
-    }
 
-    
-    strcpy((char *)server.reply, response_header);
+  int header_len = strlen(response_header);
 
-    size_t rdbytes = 0;
-    
-    rdbytes = read_large_file(fptr, f_size, server.reply + res_len);
-
-    server.send_ptr = server.reply;
+  server.reply = (unsigned char*)response_header;
+  server.send_ptr = (unsigned char*)response_header;
   
-  } else {
-    // DO NOT FORGET TO FREE AFTER SENDING THE REPLY TO THE CLIENT!
-    server.reply = calloc(reply_size,1);
-    mcount++;
+  return header_len;
 
-
-    if( server.reply ==  NULL ){
-      fprintf(stderr, "Couldn't allocate memory\n");
-    }
-    strcpy((char *)server.reply, response_header);
-    
-    size_t rdBytes = 0;
-    
-    rdBytes = read_file(fptr, f_size, server.reply + res_len);
-
-    server.send_ptr = server.reply;
-  }
-
-  return reply_size;
 }

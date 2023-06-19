@@ -19,11 +19,13 @@
 
 logger_t logger;
 
-  char response_header[512];
+char response_header[512];
+
 typedef struct server_ds {
   int sockfd;
   struct sockaddr_in info;
-
+  int file_fd;            // file descriptor of the file that the server wants to send
+    long f_size;
   unsigned char *reply;    // pointer to the message that needs to be sent
   unsigned char *send_ptr; /* pointer to the first element in reply
                               that needs to be sent.
@@ -39,7 +41,7 @@ void init_server(uint16_t port);
 int make_socket_nonblocking(int fd);
 ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client_state);
 int generate_response(http_t *request, int sockfd);
-ssize_t send_file(int sockfd, int file_fd, size_t len);
+ssize_t send_file(int sockfd, int file_fd, size_t len, int* client_state);
 size_t generate_ok_header(http_t *request, const char* file_path, long f_size);
 // =================================================================
 
@@ -209,15 +211,10 @@ int run_event_loop(event_loop_t *event) {
               perror("accept()");
               break;
             }
-            //char log_msg[150];
             
-            //snprintf(log_msg,150, "New client %d connection!", connfd);
-            
-            //log_message(&logger,log_msg);
             #ifdef DBG
             
             printf(GREEN "New client %d connection!\n" RESET, connfd);
-
 
             #endif
             if (make_socket_nonblocking(connfd) == -1) {
@@ -343,8 +340,6 @@ int run_event_loop(event_loop_t *event) {
         server.left -= bytesSnd;
       
         if (server.reply != NULL && server.left <= 0) {
-            printf("message sent to client\n");
-            printf("message : \n%s\n", server.reply);
 #ifdef DBG
           printf("Sent header to the client %d\n", client_fd);
 #endif
@@ -353,7 +348,13 @@ int run_event_loop(event_loop_t *event) {
         }
 
         // now that we have sent all the header, we will send the file
-        
+
+        bytesSnd = send_file(client_fd,server.file_fd,server.f_size, &client_closed);
+
+        // now that we have sent the file, we will close it 
+
+        close(server.file_fd);
+
         if (client_closed) {
 
 #ifdef DBG
@@ -376,21 +377,24 @@ int run_event_loop(event_loop_t *event) {
 }
 
 // send len bytes of a file identified by file_fd to sockfd 
-ssize_t send_file(int sockfd, int file_fd, size_t len){
+ssize_t send_file(int sockfd, int file_fd, size_t len, int* client_state){
     
     ssize_t bytes = 0;
     size_t total_sent = 0;
 
     while(len){
         bytes = sendfile(sockfd,file_fd,NULL,len);
+        // printf("bytes sent by sendfile() : %ld\n", bytes);
         if( bytes == -1 ){
             if( errno == EAGAIN || errno == EWOULDBLOCK ){
                 // the kernel buffer is full, wait for it to free up a little
                 // send later 
-
+                printf("Kernel buffer full!\n");
                 return -total_sent;
             }else{
-                perror("send()");
+           //     perror("send_file()");
+                *client_state = 1;
+                break;
             }
         }
 
@@ -456,9 +460,14 @@ int generate_response(http_t *request, int sockfd){
       }
   }
 
+
   long f_size = file_info.st_size;
 
   server.left = generate_ok_header(request,file_path,f_size);
+
+  server.file_fd = open(file_path,O_RDONLY);
+
+  server.f_size = f_size; 
 
   return server.left;
 

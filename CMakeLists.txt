@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.00)
 project(Web_Server_C)
 
-add_compile_options(-mtune=native -O2)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native -Wall -Wextra -pedantic -O2")
 
 include_directories(include)
 file(GLOB MAIN

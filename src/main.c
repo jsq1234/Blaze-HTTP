@@ -419,6 +419,7 @@ ssize_t send_file(int sockfd, int file_fd, size_t len, int* client_state){
                 //printf("Kernel buffer full!\n");
                 return -total_sent;
             }else{
+                log_message(&logger,strerror(errno));
                 perror("send_file()");
                 *client_state = 1;
                 break;
@@ -451,6 +452,7 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
 #endif
         return -total_sent;
       } else {
+          log_message(&logger,strerror(errno));
         perror("send()");
         *client_state = 1;
         //printf("errno : %d\n", errno);

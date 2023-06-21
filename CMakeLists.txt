@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.00)
 project(Web_Server_C)
 
-add_compile_options(-mtune=native -march=native -O2)
+add_compile_options(-O2)
 
 include_directories(include)
 file(GLOB MAIN

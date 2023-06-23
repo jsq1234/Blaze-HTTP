@@ -62,6 +62,16 @@ typedef struct event_loop {
 
 int init_loop(event_loop_t *ev_ds);
 int run_event_loop(event_loop_t *event);
+int create_worker_processes(int N){
+    for(int i=0; i<N; i++){
+        if(fork() < 0 ){
+            perror("fork()");
+            return -1;
+        }
+    }
+    printf("Initializing server...\n");
+    return 0;
+}
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -71,13 +81,15 @@ int main(int argc, char **argv) {
   signal(SIGPIPE, signal_handler);
 
   uint16_t port = atoi(argv[1]);
+
+  create_worker_processes(3);
   init_server(port);
   event_loop_t event;
   init_loop(&event);
 
-  if( init_logger(&logger,"log.txt") < 0 ){
+  /* if( init_logger(&logger,"log.txt") < 0 ){
       fprintf(stderr,"logger initialization failed.\n");
-  }
+  }*/
 
   run_event_loop(&event);
 }
@@ -419,7 +431,7 @@ ssize_t send_file(int sockfd, int file_fd, size_t len, int* client_state){
                 //printf("Kernel buffer full!\n");
                 return -total_sent;
             }else{
-                log_message(&logger,strerror(errno));
+                //log_message(&logger,strerror(errno));
                 perror("send_file()");
                 *client_state = 1;
                 break;
@@ -452,7 +464,7 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
 #endif
         return -total_sent;
       } else {
-          log_message(&logger,strerror(errno));
+          //log_message(&logger,strerror(errno));
         perror("send()");
         *client_state = 1;
         //printf("errno : %d\n", errno);

@@ -77,6 +77,7 @@ void *bz_palloc(bz_pool_t *pool, size_t size) {
 
     if ((size_t)(cur->end - ptr) >= cur->reg_size) {
       cur->last += cur->reg_size;
+      cur->size = cur->end - cur->last;
       return ptr;
     }
     cur = cur->next;
@@ -98,12 +99,16 @@ typedef struct point {
 
 int main() {
   bz_pool_t* pool = bz_create_pool_default(sizeof(point_t));
+  printf("pool size : %ld, %ld\n", pool->end - pool->last, pool->size );
 
-  point_t* p = bz_palloc(pool,sizeof(*p));
+  point_t* p[10];
+  for(int i=0; i<10; i++){
+    p[i] = bz_palloc(pool,sizeof(point_t));
+    p[i]->x = 12;
+    p[i]->y = 13;
+    p[i]->z = 12;
+  }
+  printf("pool size : %ld, %ld\n", pool->end - pool->last, pool->size );
 
-  p->x = 12;
-  p->y = 14;
-  p->z = 44;
-  
 
 }

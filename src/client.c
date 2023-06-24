@@ -2,7 +2,7 @@
 
 #define DISCONNECTED 1<<0
 #define CONNECTECTED 1<<1
-#define WAIT_FOR_REPLY 1<<2
+#define WAIT_FOR_REPLY 1<<2 // client is waiting for a reply from server
 #define CLOSED 1<<3
 
 typedef struct client_ds{

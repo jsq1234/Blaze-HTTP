@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 static int bz_epoll_init(event_loop_t *event_loop, size_t size){
+
     bz_epoll_t* p = malloc(sizeof(*p));
 
     if( p == NULL ){
@@ -60,9 +61,12 @@ void bz_add_event(event_loop_t *event_loop, int fd, int flags){
         close(fd);
         return ;
     }
-
 }
 
-void bz_remove_event(event_loop_t* event_loop, int fd, int flags){
-    
+void bz_delete_event(event_loop_t *event_loop, int fd, int del_mask){
+    bz_epoll_t* epl = event_loop->epoll_data;
+    struct epoll_event e = {0};
+    // to do later
 }
+
+

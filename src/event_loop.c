@@ -6,11 +6,6 @@
 #include <unistd.h>
 #include <sys/sendfile.h>
 
-void bz_handle_new_connection(data_t* d);
-void bz_handle_read_event(data_t* d);
-void bz_handle_write_event(data_t* d);
-void bz_handle_close_event(data_t* d);
-
 static int bz_epoll_init(event_loop_t *event_loop, size_t size){
 
     bz_epoll_t* p = malloc(sizeof(*p));
@@ -153,6 +148,16 @@ void bz_handle_new_connection(data_t* d){
 
         /* Now we create a new client data structure */
 
+        client_connection_t* conn = malloc(sizeof(*conn));
+        conn->sa = conn_addr;
+        conn->len = conn_len;
+        /* To do -> Create a buffer struct instead */
+        conn->d.buff = malloc(1024);
+        conn->d.fd = connfd;
+        conn->d.filefd = 0;
+        conn->d.state = CONNECTED;
+        conn->d.f_size = 0;
+        conn->d.offset = 0;
         
     }
 }
@@ -188,7 +193,6 @@ void bz_handle_write_event(data_t* d){
     }
 
     d->state = REPLY_SENT;
-
 
 }
 

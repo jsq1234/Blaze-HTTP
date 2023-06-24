@@ -50,10 +50,13 @@ struct event_loop_ds{
 event_loop_t* bz_create_event_loop(size_t size);
 void bz_add_event(event_loop_t* event_loop, int fd,int flags);
 void bz_delete_event(event_loop_t* event_loop, int fd, int del_mask);
+
+void bz_handle_new_connection(data_t* d);
+void bz_handle_read_event(data_t* d);
+void bz_handle_write_event(data_t* d);
+void bz_handle_close_event(data_t* d);
+
 int run_event_loop(event_loop_t* event_loop);
 
 
 #endif
-
-/* Server.h  */
-

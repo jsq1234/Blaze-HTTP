@@ -49,9 +49,7 @@ event_loop_t* bz_create_event_loop(size_t size){
     return event_loop;
 }
 
-void bz_add_event(event_loop_t *event_loop, int fd, int flags){
-    int efd = event_loop->epoll_data->epollfd;
-
+void bz_add_event(int epfd, int fd, int flags){
     struct epoll_event e = {0};
 
     e.data.fd = fd;
@@ -63,17 +61,13 @@ void bz_add_event(event_loop_t *event_loop, int fd, int flags){
     if( flags & BZ_WRITEABLE ) e.events |= EPOLLOUT;
     if( flags & BZ_EDGE_TRIG ) e.events |= EPOLLET;
 
-    if( epoll_ctl(efd,op,fd,&e) < 0 ){
+    if( epoll_ctl(epfd,op,fd,&e) < 0 ){
         // if the operation failed, close the file descriptor
         close(fd);
     }
 }
 
-void bz_delete_event(event_loop_t *event_loop, int fd, int del_mask){
-    bz_epoll_t* epl = event_loop->epoll_data;
-    struct epoll_event e = {0};
-    // to do later
-}
+
 
 
 int bz_handle_events(event_loop_t* event_loop){
@@ -94,6 +88,7 @@ int bz_handle_events(event_loop_t* event_loop){
 
     }else{
 
+        int epoll_fd = event_loop->epoll_data->epollfd;
         for(int i=0; i<nfds; i++){
             struct epoll_event event = ev->events[i];
             if( event.events & EPOLLERR){
@@ -102,11 +97,11 @@ int bz_handle_events(event_loop_t* event_loop){
             }
             if( event.events & EPOLLIN ){
                 data_t* d = (data_t*)event.data.ptr;
-                event_loop->event_handler(d);
+                event_loop->event_handler(epoll_fd,d);
             }
             if( event.events & EPOLLOUT ){
                 data_t* d = (data_t*)event.data.ptr;
-                event_loop->event_handler(d);
+                event_loop->event_handler(epoll_fd,d);
             }
         }
     }
@@ -114,19 +109,19 @@ int bz_handle_events(event_loop_t* event_loop){
     return 0;
 }
 
-void bz_handle_read_event(data_t* d){
+void bz_handle_read_event(int epollfd, data_t* d){
     /*
         negative filefd indicates that read event occured on 
         server socket. This is a new connection event which will
         be handled by another function.
     */
     if( d->filefd < 0 ){
-        bz_handle_new_connection(d);
+        bz_handle_new_connection(epollfd,d);
         return ;
     }
 
 }
-void bz_handle_new_connection(data_t* d){
+void bz_handle_new_connection(int epoll_fd, data_t* d){
     int sockfd = d->fd;
     
     struct sockaddr_in conn_addr;
@@ -159,9 +154,11 @@ void bz_handle_new_connection(data_t* d){
         conn->d.f_size = 0;
         conn->d.offset = 0;
         
+        bz_add_event(epoll_fd,connfd,BZ_ALL);
     }
 }
-void bz_handle_write_event(data_t* d){
+
+void bz_handle_write_event(int epollfd, data_t* d){
 
     int fd = d->fd;
     int filefd = d->filefd;

@@ -42,15 +42,15 @@
 #define CLOSED 1<<5
 
 struct client_connection_ds;
-typedef client_connection_ds client_connection_t;
+typedef struct client_connection_ds client_connection_t;
 
 typedef struct data{
-    int fd; 
-    int filefd; /* Negative for server sockfd */
-    off_t offset; /* File offset/ Bytes sent */
-    off_t f_size; /* File size */
-    u_char* buff; /* A buffer to hold data */
-    int state; /* State of the client. Use it only for the client. */
+    int     fd; 
+    int     filefd;     /* Negative for server sockfd */
+    off_t   offset;     /* File offset/ Bytes sent */
+    off_t   f_size;     /* File size */
+    u_char* buff;       /* A buffer to hold data */
+    int     state;      /* State of the client. Use it only for the client. */
 } data_t;
 
 struct client_connection_ds{

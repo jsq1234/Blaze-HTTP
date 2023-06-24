@@ -50,6 +50,7 @@ typedef struct data{
     off_t   offset;     /* File offset/ Bytes sent */
     off_t   f_size;     /* File size */
     u_char* buff;       /* A buffer to hold data */
+    size_t buff_size;   /* Size of the buffer */
     int     state;      /* State of the client. Use it only for the client. */
 } data_t;
 

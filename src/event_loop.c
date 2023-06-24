@@ -110,14 +110,39 @@ int bz_handle_events(event_loop_t* event_loop){
 }
 
 void bz_handle_read_event(int epollfd, data_t* d){
-    /*
-        negative filefd indicates that read event occured on 
+    /*  negative filefd indicates that read event occured on 
         server socket. This is a new connection event which will
-        be handled by another function.
-    */
+        be handled by another function. */
+
     if( d->filefd < 0 ){
         bz_handle_new_connection(epollfd,d);
         return ;
+    }
+
+    int fd = d->fd;
+
+    ssize_t bytesRcv = 0;
+    size_t len = d->buff_size;
+    for(;;){
+        bytesRcv = read(fd, d->buff, len);
+        if( bytesRcv == 0 ){
+            /*  Client has sent a FIN packet and thus has closed the connection
+                If we still have any data that we want to send, we should send it
+                before closing our end.
+            */
+
+        }
+        if( bytesRcv == -1 ){
+            if( errno == EAGAIN || errno == EWOULDBLOCK ){
+                /* We have received everything that we could. */
+                d->state = PENDING_REPLY;
+                break;
+            }
+        }
+
+        d->buff[len] = '\0';
+        d->buff += len;
+        len -= bytesRcv;
     }
 
 }

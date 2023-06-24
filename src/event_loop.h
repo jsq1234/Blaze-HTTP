@@ -12,9 +12,13 @@
 #define BZ_WRITEABLE 1<<2
 #define BZ_EDGE_TRIG 1<<3
 #define BZ_ALL (BZ_READABLE|BZ_WRITEABLE|BZ_NONE|BZ_EDGE_TRIG)
+
+
 typedef struct data{
     int fd; 
     int filefd; /* Negative for server sockfd */
+    off_t offset; /* File offset/ Bytes sent */
+    off_t f_size; /* File size */
     u_char* buff; /* A buffer to hold data */
     int state; /* State of the client. Use it only for the client. */
 } data_t;
@@ -31,20 +35,12 @@ typedef struct epoll_struct{
     int max_size;
 } bz_epoll_t;
 
-typedef struct event_action_ds {
-    void (*accept_connection)(event_loop_t* event_loop);
-    void (*delete_connection)(event_loop_t* event_loop);
-    void (*write_message)(event_loop_t* event_loop, int fd);
-    void (*read_message)(event_loop_t* event_loop, int fd);
-} event_action_t;
-
 
 struct event_loop_ds{
     bz_epoll_t* epoll_data;
     int maxfd;
     int flags;
-    bz_
-
+    bz_event_handler_t* event_handler;
 };
 
 

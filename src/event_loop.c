@@ -1,7 +1,15 @@
 #include "event_loop.h"
+#include "client.h"
+#include <errno.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/sendfile.h>
+
+void bz_handle_new_connection(data_t* d);
+void bz_handle_read_event(data_t* d);
+void bz_handle_write_event(data_t* d);
+void bz_handle_close_event(data_t* d);
 
 static int bz_epoll_init(event_loop_t *event_loop, size_t size){
 
@@ -25,7 +33,7 @@ static int bz_epoll_init(event_loop_t *event_loop, size_t size){
         return -1;
     }
 
-    event_loop->max_size = size;
+    p->max_size = size;
 
     event_loop->epoll_data = p;
 
@@ -76,16 +84,21 @@ void bz_delete_event(event_loop_t *event_loop, int fd, int del_mask){
 int bz_handle_events(event_loop_t* event_loop){
 
     bz_epoll_t* ev = event_loop->epoll_data;
-    
+
     int nfds = epoll_wait(ev->epollfd,ev->events,ev->max_size,-1);
 
     if( nfds < 0 ){
+
         perror("epoll_wait\n");
         return -1;
+
     }else if ( nfds == 0 ){
+
         printf("Epoll timed out...\n");
         return 0;
+
     }else{
+
         for(int i=0; i<nfds; i++){
             struct epoll_event event = ev->events[i];
             if( event.events & EPOLLERR){
@@ -94,10 +107,11 @@ int bz_handle_events(event_loop_t* event_loop){
             }
             if( event.events & EPOLLIN ){
                 data_t* d = (data_t*)event.data.ptr;
+                event_loop->event_handler(d);
             }
             if( event.events & EPOLLOUT ){
                 data_t* d = (data_t*)event.data.ptr;
-
+                event_loop->event_handler(d);
             }
         }
     }
@@ -105,7 +119,78 @@ int bz_handle_events(event_loop_t* event_loop){
     return 0;
 }
 
+void bz_handle_read_event(data_t* d){
+    /*
+        negative filefd indicates that read event occured on 
+        server socket. This is a new connection event which will
+        be handled by another function.
+    */
+    if( d->filefd < 0 ){
+        bz_handle_new_connection(d);
+        return ;
+    }
 
+}
+void bz_handle_new_connection(data_t* d){
+    int sockfd = d->fd;
+    
+    struct sockaddr_in conn_addr;
+    socklen_t conn_len;
+    int connfd;
+
+    for(;;){
+        connfd = accept(sockfd,(struct sockaddr*)&conn_addr,&conn_len);
+        if( connfd == -1 ){
+            if( errno == EAGAIN || errno == EWOULDBLOCK ){
+                /* We have processed all the connections. */
+                return ;
+            }
+        }
+
+#ifdef DBG
+        printf("New client connected : %d\n", connfd);
+#endif
+
+        /* Now we create a new client data structure */
+
+        
+    }
+}
+void bz_handle_write_event(data_t* d){
+
+    int fd = d->fd;
+    int filefd = d->filefd;
+    off_t file_size = d->f_size;
+    off_t offset = d->offset;
+    off_t left = file_size - offset;
+
+    ssize_t bytesSnd = 0;
+
+    while(left){
+        bytesSnd = sendfile(fd, filefd, &offset, left);
+        if( bytesSnd == -1 ){
+            if( errno == EAGAIN || errno == EWOULDBLOCK ){
+                /*  This indicates that that kernel buffers are full
+                    Mark this file descriptor as pending and retry again  */
+                    d->state = PENDING_REPLY;
+                    break;
+            }else{
+                perror("sendfile()");
+                
+            }
+        }
+        left -= bytesSnd;
+    }
+
+    if( d->state == PENDING_REPLY ){
+        d->offset = offset;
+        return ;
+    }
+
+    d->state = REPLY_SENT;
+
+
+}
 
 /* 
     struct server_ds;
@@ -119,6 +204,4 @@ int bz_handle_events(event_loop_t* event_loop){
         event_loop_t* event_loop;
     };
 
-    
-    
  */

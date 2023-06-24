@@ -87,9 +87,6 @@ int main(int argc, char **argv) {
   event_loop_t event;
   init_loop(&event);
 
-  /* if( init_logger(&logger,"log.txt") < 0 ){
-      fprintf(stderr,"logger initialization failed.\n");
-  }*/
 
   run_event_loop(&event);
 }

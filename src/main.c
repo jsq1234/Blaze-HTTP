@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Usage : %s [port]\n", argv[0]);
     exit(1);
   }
-  signal(SIGPIPE, signal_handler);
+  signal(SIGPIPE,SIG_IGN);
 
   uint16_t port = atoi(argv[1]);
 

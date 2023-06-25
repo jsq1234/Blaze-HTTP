@@ -155,13 +155,19 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
 
     ssize_t bytesRcv = 0;
     size_t len = d->buff_size;
+    
     for(;;){
+
         bytesRcv = read(fd, d->buff, len);
         if( bytesRcv == 0 ){
-            /*  Client has sent a FIN packet and thus has closed the connection
+            /*  
+                Client has sent a FIN packet and thus has closed the connection
                 If we still have any data that we want to send, we should send it
                 before closing our end.
             */
+
+            d->state = DISCONNECTED | PENDING_REPLY;
+            break;
 
         }
         if( bytesRcv == -1 ){
@@ -205,15 +211,21 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
         /* Now we create a new client data structure */
 
         bz_connection_t* conn = malloc(sizeof(*conn));
+        
         conn->sa = conn_addr;
         conn->len = conn_len;
-        /* To do -> Create a buffer struct instead */
-        conn->d.buff = malloc(1024);
-        conn->d.fd = connfd;
-        conn->d.filefd = 0;
-        conn->d.state = CONNECTED;
-        conn->d.f_size = 0;
-        conn->d.offset = 0;
+
+        data_t* dt = malloc(sizeof(*dt));
+
+        dt->fd = connfd;
+        dt->buff = malloc(1024);
+        dt->buff_size = 1024;
+        dt->filefd = 0;
+        dt->state = CONNECTED;
+        dt->f_size = 0;
+        dt->offset = 0;
+
+        conn->d = dt;
         
         event_loop->connections[connfd] = conn;
 
@@ -223,6 +235,7 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
 
 void bz_write_event(event_loop_t* event_loop, data_t* d){
 
+    
     int fd = d->fd;
     int filefd = d->filefd;
     off_t file_size = d->f_size;
@@ -232,7 +245,9 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
     ssize_t bytesSnd = 0;
 
     while(left){
+
         bytesSnd = sendfile(fd, filefd, &offset, left);
+
         if( bytesSnd == -1 ){
             if( errno == EAGAIN || errno == EWOULDBLOCK ){
                 /*  This indicates that that kernel buffers are full
@@ -244,7 +259,7 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
                 /* 
                     Close the connection in case of any error.
                     Possible scenario -> Connection Reset/Broken pipe
-                 */
+                */
                 d->state = CLOSED;
                 break;
             }
@@ -279,6 +294,7 @@ void bz_close_event(event_loop_t* event_loop, data_t* d){
     free(d);
     free(conn);
 }
+
 /* 
     struct server_ds;
     typedef server_ds server_t;
@@ -288,8 +304,7 @@ void bz_close_event(event_loop_t* event_loop, data_t* d){
         struct sockaddr_in sa;
         socklen_t len;
         data_t dt;
-        bz_connection_t connections[MAX_CONN];
         event_loop_t* event_loop;
     };
 
- */
+*/

@@ -60,7 +60,8 @@ typedef struct data{
 struct connection_ds{
     struct sockaddr_in  sa;
     socklen_t           len;
-    data_t              d;
+    data_t*             d;
+    char padding[32];
 };
 
 #endif

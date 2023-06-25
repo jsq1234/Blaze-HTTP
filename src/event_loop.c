@@ -36,6 +36,7 @@ static int bz_epoll_init(event_loop_t *event_loop, size_t size){
 }
 
 event_loop_t* bz_create_event_loop(size_t size){
+
     event_loop_t* event_loop = malloc(sizeof(*event_loop));
     
     if( bz_epoll_init(event_loop, size) < 0 ){
@@ -45,7 +46,8 @@ event_loop_t* bz_create_event_loop(size_t size){
 
     event_loop->flags = 0;
     event_loop->maxfd = size;
-
+    
+    /* TO DO : More members need initialization. */
     return event_loop;
 }
 
@@ -82,7 +84,6 @@ int bz_process_events(event_loop_t* event_loop){
     int nfds = epoll_wait(ev->epollfd,ev->events,ev->max_size,-1);
 
     if( nfds < 0 ){
-
         perror("epoll_wait\n");
         return -1;
 
@@ -107,7 +108,8 @@ int bz_process_events(event_loop_t* event_loop){
                 data_t* d = (data_t*)event.data.ptr;
 
                 if( d->filefd < 0 ){
-                    /*  A negative filefd indicates that the data belongs to the server.
+                    /*  
+                        A negative filefd indicates that the data belongs to the server.
                         Thus, we have a new connection
                      */
                     event_loop->handler.bz_handle_new_connection(epoll_fd,d);

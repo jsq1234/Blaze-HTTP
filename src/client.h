@@ -42,9 +42,9 @@
 #define PENDING_REPLY 1<<5
 #define CLOSED 1<<6
 
-struct client_connection_ds;
+struct connection_ds;
 
-typedef struct client_connection_ds client_connection_t;
+typedef struct connection_ds bz_connection_t;
 
 typedef struct data{
     int     fd; 
@@ -56,7 +56,7 @@ typedef struct data{
     int     state;      /* State of the client. Use it only for the client. */
 } data_t;
 
-struct client_connection_ds{
+struct connection_ds{
     struct sockaddr_in  sa;
     socklen_t           len;
     data_t              d;

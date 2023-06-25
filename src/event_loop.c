@@ -195,7 +195,9 @@ void bz_handle_new_connection(int epoll_fd, data_t* d){
     int connfd;
 
     for(;;){
+
         connfd = accept(sockfd,(struct sockaddr*)&conn_addr,&conn_len);
+
         if( connfd == -1 ){
             if( errno == EAGAIN || errno == EWOULDBLOCK ){
                 /* We have processed all the connections. */
@@ -209,7 +211,7 @@ void bz_handle_new_connection(int epoll_fd, data_t* d){
 
         /* Now we create a new client data structure */
 
-        client_connection_t* conn = malloc(sizeof(*conn));
+        bz_connection_t* conn = malloc(sizeof(*conn));
         conn->sa = conn_addr;
         conn->len = conn_len;
         /* To do -> Create a buffer struct instead */
@@ -219,6 +221,7 @@ void bz_handle_new_connection(int epoll_fd, data_t* d){
         conn->d.state = CONNECTED;
         conn->d.f_size = 0;
         conn->d.offset = 0;
+        
         
         bz_add_event(epoll_fd,connfd,BZ_ALL);
     }
@@ -264,7 +267,12 @@ void bz_write_event(int epollfd, data_t* d){
 
 }
 
+/* 
+    This function closes the socket descriptor and frees the resources
+ */
+void bz_close_event(int epoll_fd, data_t* d){
 
+}
 /* 
     struct server_ds;
     typedef server_ds server_t;
@@ -274,6 +282,7 @@ void bz_write_event(int epollfd, data_t* d){
         struct sockaddr_in sa;
         socklen_t len;
         data_t dt;
+        bz_connection_t connections[MAX_CONN];
         event_loop_t* event_loop;
     };
 

@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include "client.h"
 
+#define MAX_CONN 4*1024
 #define BZ_NONE 1<<0
 #define BZ_READABLE 1<<1
 #define BZ_WRITEABLE 1<<2
@@ -40,7 +41,7 @@ struct event_loop_ds{
     bz_epoll_t* epoll_data;
     int maxfd;
     int flags;
-    bz_connection_t 
+    bz_connection_t connections[MAX_CONN];
     bz_event_handler_t* event_handler;
     bz_event_t handler;
 };

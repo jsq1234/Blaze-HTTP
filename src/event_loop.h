@@ -41,7 +41,7 @@ struct event_loop_ds{
     int maxfd;
     int flags;
     bz_event_handler_t* event_handler;
-    bz_event_t* handler;
+    bz_event_t handler;
 };
 
 

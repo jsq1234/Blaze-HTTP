@@ -94,19 +94,40 @@ int bz_process_events(event_loop_t* event_loop){
     }else{
 
         int epoll_fd = event_loop->epoll_data->epollfd;
+
         for(int i=0; i<nfds; i++){
+
             struct epoll_event event = ev->events[i];
-            if( event.events & EPOLLERR){
+
+            if( event.events & EPOLLERR ){
                 perror("epoll_err");
                 return -1;
             }
             if( event.events & EPOLLIN ){
                 data_t* d = (data_t*)event.data.ptr;
-                event_loop->event_handler(epoll_fd,d);
+
+                if( d->filefd < 0 ){
+                    /*  A negative filefd indicates that the data belongs to the server.
+                        Thus, we have a new connection
+                     */
+                    event_loop->handler.bz_handle_new_connection(epoll_fd,d);
+
+                }else{
+                    event_loop->handler.bz_handle_read_event(epoll_fd,d);
+                }
             }
             if( event.events & EPOLLOUT ){
                 data_t* d = (data_t*)event.data.ptr;
-                event_loop->event_handler(epoll_fd,d);
+                /*  
+                    If we have received the message from the client,
+                    only then we will send the response.
+                    This is an alternative to setting EPOLLOUT flag 
+                    with epoll_ctl. I am not sure if this actually 
+                    increases the performace by reducing epoll_ctl system call.
+                */
+                if( d->state == MSG_RECVD ){
+                    event_loop->handler.bz_handle_write_event(epoll_fd, d);
+                }
             }
         }
     }

@@ -37,9 +37,10 @@
 */
 #define CONNECTED 1<<1
 #define DISCONNECTED 1<<2
-#define REPLY_SENT 1<<3
-#define PENDING_REPLY 1<<4
-#define CLOSED 1<<5
+#define MSG_RECVD 1<<3
+#define REPLY_SENT 1<<4
+#define PENDING_REPLY 1<<5
+#define CLOSED 1<<6
 
 struct client_connection_ds;
 typedef struct client_connection_ds client_connection_t;

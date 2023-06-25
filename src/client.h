@@ -43,6 +43,7 @@
 #define CLOSED 1<<6
 
 struct client_connection_ds;
+
 typedef struct client_connection_ds client_connection_t;
 
 typedef struct data{

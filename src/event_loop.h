@@ -40,6 +40,7 @@ struct event_loop_ds{
     bz_epoll_t* epoll_data;
     int maxfd;
     int flags;
+    bz_connection_t 
     bz_event_handler_t* event_handler;
     bz_event_t handler;
 };

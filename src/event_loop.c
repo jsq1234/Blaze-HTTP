@@ -46,7 +46,17 @@ event_loop_t* bz_create_event_loop(size_t size){
 
     event_loop->flags = 0;
     event_loop->maxfd = size;
-    
+
+    /* 
+        Event handlers that are called when a specific event arrives.
+        TO_DO : Support something generic for future use.
+    */
+
+    event_loop->handler.bz_handle_new_connection = bz_handle_new_connection;
+    event_loop->handler.bz_handle_read_event = bz_read_event;
+    event_loop->handler.bz_handle_write_event = bz_write_event;
+    event_loop->handler.bz_handle_close_event = bz_close_event;
+
     /* TO DO : More members need initialization. */
     return event_loop;
 }
@@ -72,7 +82,9 @@ void bz_add_event(int epfd, int fd, int flags){
 
 int run_event_loop(event_loop_t* event_loop){
     for(;;){
-        bz_process_events(event_loop);
+        if( bz_process_events(event_loop) <= 0 ){
+            /* TO_DO : Perform clean up action */
+        }
     }
     return 0;
 }
@@ -137,7 +149,7 @@ int bz_process_events(event_loop_t* event_loop){
     return 0;
 }
 
-void bz_handle_read_event(int epollfd, data_t* d){
+void bz_read_event(int epollfd, data_t* d){
     /*  negative filefd indicates that read event occured on 
         server socket. This is a new connection event which will
         be handled by another function. */
@@ -174,6 +186,7 @@ void bz_handle_read_event(int epollfd, data_t* d){
     }
 
 }
+
 void bz_handle_new_connection(int epoll_fd, data_t* d){
     int sockfd = d->fd;
     
@@ -211,7 +224,7 @@ void bz_handle_new_connection(int epoll_fd, data_t* d){
     }
 }
 
-void bz_handle_write_event(int epollfd, data_t* d){
+void bz_write_event(int epollfd, data_t* d){
 
     int fd = d->fd;
     int filefd = d->filefd;
@@ -231,7 +244,12 @@ void bz_handle_write_event(int epollfd, data_t* d){
                     break;
             }else{
                 perror("sendfile()");
-                
+                /* 
+                    Close the connection in case of any error.
+                    Possible scenario -> Connection Reset/Broken pipe
+                 */
+                d->state = CLOSED;
+                break;
             }
         }
         left -= bytesSnd;
@@ -245,6 +263,7 @@ void bz_handle_write_event(int epollfd, data_t* d){
     d->state = REPLY_SENT;
 
 }
+
 
 /* 
     struct server_ds;

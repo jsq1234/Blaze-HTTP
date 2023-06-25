@@ -7,11 +7,10 @@
 #define CLOSE (1<<3)
 #define ALL (READ|WRITE|CLOSE)
 
+void func(int* ptr){
+    free(ptr);
+}
 int main(){
-    int* a;
-    {
-        int* p = malloc(sizeof(*p));
-        //a = p;
-    }
-    //free(a);
+    int* a = malloc(sizeof(*a));
+    func(a);
 }

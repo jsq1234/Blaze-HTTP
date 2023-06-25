@@ -9,7 +9,7 @@
     also known as graceful disconnect, and if we have to send reply
     we will send the reply and put the client in the closed state.
     When client is in closed state, close(fd) will be called.
- */
+*/
 
 /*  CONNECTED:
     Client is connected to the server and ready to send message
@@ -35,6 +35,7 @@
     We have closed the client, remove it either using epoll_ctl_mod or 
     close(fd) system call.  
 */
+
 #define CONNECTED 1<<1
 #define DISCONNECTED 1<<2
 #define MSG_RECVD 1<<3

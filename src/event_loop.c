@@ -265,7 +265,19 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
     This function closes the socket descriptor and frees the resources
  */
 void bz_close_event(event_loop_t* event_loop, data_t* d){
+    if(!d){
+        fprintf(stderr, "Null data sent in bz_close_event\n");
+        return ;
+    }
+    int fd = d->fd;
+    bz_connection_t* conn = event_loop->connections[fd];
+    event_loop->connections[fd] = NULL;
 
+    /* Do a graceful shutdown */
+    shutdown(fd,SHUT_WR);
+
+    free(d);
+    free(conn);
 }
 /* 
     struct server_ds;

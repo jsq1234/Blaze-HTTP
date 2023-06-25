@@ -68,9 +68,14 @@ void bz_add_event(int epfd, int fd, int flags){
 }
 
 
+int run_event_loop(event_loop_t* event_loop){
+    for(;;){
+        bz_process_events(event_loop);
+    }
+    return 0;
+}
 
-
-int bz_handle_events(event_loop_t* event_loop){
+int bz_process_events(event_loop_t* event_loop){
 
     bz_epoll_t* ev = event_loop->epoll_data;
 

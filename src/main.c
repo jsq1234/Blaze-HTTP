@@ -172,6 +172,8 @@ int run_event_loop(event_loop_t *event) {
   struct sockaddr_in in_addr;
   socklen_t in_len;
 
+  unsigned long long count = 0;
+
   for (;;) {
 
 #ifdef DBG
@@ -182,6 +184,7 @@ int run_event_loop(event_loop_t *event) {
 
     if( nfds == 0 ){
         printf("timeout! Closing..\n");
+        printf("number of connections by server %d: %llu\n", server.sockfd, count);
         close(server.sockfd);
         return 0;
     }
@@ -226,7 +229,7 @@ int run_event_loop(event_loop_t *event) {
               perror("accept()");
               break;
             }
-            
+            count++;          
             #ifdef DBG
             
             printf(GREEN "New client %d connection!\n" RESET, connfd);

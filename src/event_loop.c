@@ -124,10 +124,10 @@ int bz_process_events(event_loop_t* event_loop){
                         A negative filefd indicates that the data belongs to the server.
                         Thus, we have a new connection
                      */
-                    event_loop->handler.bz_handle_new_connection(epoll_fd,d);
+                    event_loop->handler.bz_handle_new_connection(event_loop,d);
 
                 }else{
-                    event_loop->handler.bz_handle_read_event(epoll_fd,d);
+                    event_loop->handler.bz_handle_read_event(event_loop,d);
                 }
             }
             if( event.events & EPOLLOUT ){
@@ -140,7 +140,7 @@ int bz_process_events(event_loop_t* event_loop){
                     increases the performace by reducing epoll_ctl system call.
                 */
                 if( d->state == MSG_RECVD ){
-                    event_loop->handler.bz_handle_write_event(epoll_fd, d);
+                    event_loop->handler.bz_handle_write_event(event_loop, d);
                 }
             }
         }
@@ -149,15 +149,7 @@ int bz_process_events(event_loop_t* event_loop){
     return 0;
 }
 
-void bz_read_event(int epollfd, data_t* d){
-    /*  negative filefd indicates that read event occured on 
-        server socket. This is a new connection event which will
-        be handled by another function. */
-
-    if( d->filefd < 0 ){
-        bz_handle_new_connection(epollfd,d);
-        return ;
-    }
+void bz_read_event(event_loop_t* event_loop, data_t* d){
 
     int fd = d->fd;
 
@@ -187,7 +179,8 @@ void bz_read_event(int epollfd, data_t* d){
 
 }
 
-void bz_handle_new_connection(int epoll_fd, data_t* d){
+void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
+    int epollfd = event_loop->epoll_data->epollfd;
     int sockfd = d->fd;
     
     struct sockaddr_in conn_addr;
@@ -222,12 +215,13 @@ void bz_handle_new_connection(int epoll_fd, data_t* d){
         conn->d.f_size = 0;
         conn->d.offset = 0;
         
-        
-        bz_add_event(epoll_fd,connfd,BZ_ALL);
+        event_loop->connections[connfd] = conn;
+
+        bz_add_event(epollfd,connfd,BZ_ALL);
     }
 }
 
-void bz_write_event(int epollfd, data_t* d){
+void bz_write_event(event_loop_t* event_loop, data_t* d){
 
     int fd = d->fd;
     int filefd = d->filefd;
@@ -270,7 +264,7 @@ void bz_write_event(int epollfd, data_t* d){
 /* 
     This function closes the socket descriptor and frees the resources
  */
-void bz_close_event(int epoll_fd, data_t* d){
+void bz_close_event(event_loop_t* event_loop, data_t* d){
 
 }
 /* 

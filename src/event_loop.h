@@ -22,10 +22,10 @@ struct event_loop_ds;
 typedef struct event_loop_ds event_loop_t;
 
 typedef struct event_handler{
-    void (*bz_handle_new_connection)(int epfd, data_t* d);
-    void (*bz_handle_read_event)(int epfd, data_t* d);
-    void (*bz_handle_write_event)(int epfd, data_t* d);
-    void (*bz_handle_close_event)(int epfd, data_t* d);
+    void (*bz_handle_new_connection)(event_loop_t* event_loop, data_t* d);
+    void (*bz_handle_read_event)(event_loop_t* event_loop, data_t* d);
+    void (*bz_handle_write_event)(event_loop_t* event_loop, data_t* d);
+    void (*bz_handle_close_event)(event_loop_t* event_loop, data_t* d);
 } bz_event_t;
 
 typedef void bz_event_handler_t(int e, data_t* d);
@@ -41,7 +41,7 @@ struct event_loop_ds{
     bz_epoll_t* epoll_data;
     int maxfd;
     int flags;
-    bz_connection_t connections[MAX_CONN];
+    bz_connection_t* connections[MAX_CONN];
     bz_event_handler_t* event_handler;
     bz_event_t handler;
 };
@@ -53,10 +53,10 @@ event_loop_t* bz_create_event_loop(size_t size);
 void bz_add_event(int epfd, int fd,int flags);
 void bz_delete_event(event_loop_t* event_loop, int fd, int del_mask);
 
-void bz_handle_new_connection(int epoll_fd, data_t* d);
-void bz_read_event(int epoll_fd, data_t* d);
-void bz_write_event(int epoll_fd, data_t* d);
-void bz_close_event(int epoll_fd, data_t* d);
+void bz_handle_new_connection(event_loop_t* event_loop, data_t* d);
+void bz_read_event(event_loop_t* event_loop, data_t* d);
+void bz_write_event(event_loop_t* event_loop, data_t* d);
+void bz_close_event(event_loop_t* event_loop, data_t* d);
 
 int run_event_loop(event_loop_t* event_loop);
 int bz_process_events(event_loop_t* event_loop);

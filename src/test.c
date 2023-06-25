@@ -6,7 +6,12 @@
 #define WRITE (1<<2)
 #define CLOSE (1<<3)
 #define ALL (READ|WRITE|CLOSE)
+
 int main(){
-    int a = ALL;
-    printf("%x\n", a & (~READ));
+    int* a;
+    {
+        int* p = malloc(sizeof(*p));
+        //a = p;
+    }
+    //free(a);
 }

@@ -20,4 +20,6 @@ int bz_set_tcp_nodelay(int fd);
 int bz_set_so_reuse_port(int fd);
 int bz_set_so_reuse_addr(int fd);
 
+int bz_accept(int fd);
+
 #endif

@@ -37,11 +37,19 @@ typedef struct epoll_struct{
     int max_size;
 } bz_epoll_t;
 
+typedef struct count{
+    size_t read;
+    size_t written;
+    size_t connected;
+    size_t disconnected;
+    size_t err;
+} count_t;
 
 struct event_loop_ds{
     bz_epoll_t* epoll_data;
     int maxfd;
     int flags;
+    count_t usage;
     bz_connection_t* connections[MAX_CONN];
     bz_event_handler_t* event_handler;
     bz_event_t handler;

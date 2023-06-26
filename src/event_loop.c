@@ -10,7 +10,7 @@
 
 static int bz_epoll_init(event_loop_t *event_loop, size_t size){
 
-    bz_epoll_t* p = malloc(sizeof(*p));
+    bz_epoll_t* p = calloc(1,sizeof(*p));
 
     if( p == NULL ){
         perror("Couldn't create bz_epoll_t\n");
@@ -24,7 +24,7 @@ static int bz_epoll_init(event_loop_t *event_loop, size_t size){
 
 #ifndef MAX_EVENT
 
-    p->events = malloc(sizeof(struct epoll_event)*size);
+    p->events = calloc(size,sizeof(struct epoll_event));
 
     if( p->events == NULL ){
         perror("Couldn't allocate bz_epoll_t.eventsn\n");
@@ -33,7 +33,7 @@ static int bz_epoll_init(event_loop_t *event_loop, size_t size){
     }
 
     p->max_size = size;
-    
+
 #else
     p->max_size = MAX_EVENT;
 #endif
@@ -45,7 +45,7 @@ static int bz_epoll_init(event_loop_t *event_loop, size_t size){
 
 event_loop_t* bz_create_event_loop(size_t size){
 
-    event_loop_t* event_loop = malloc(sizeof(*event_loop));
+    event_loop_t* event_loop = calloc(1,sizeof(*event_loop));
     
     if( bz_epoll_init(event_loop, size) < 0 ){
         free(event_loop);
@@ -64,6 +64,13 @@ event_loop_t* bz_create_event_loop(size_t size){
     event_loop->handler.bz_handle_read_event = bz_read_event;
     event_loop->handler.bz_handle_write_event = bz_write_event;
     event_loop->handler.bz_handle_close_event = bz_close_event;
+
+    /* For bookkeeping. Periodically log these to a file and reset. */
+    event_loop->usage.connected = 0;
+    event_loop->usage.disconnected = 0;
+    event_loop->usage.err = 0;
+    event_loop->usage.read = 0;
+    event_loop->usage.written = 0;
 
     /* TO DO : More members need initialization. */
     return event_loop;

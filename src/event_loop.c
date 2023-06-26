@@ -340,11 +340,16 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
     }
 
     if(!left){
-        /*  If we have sent all of the message we will change the state
-            to either closed or connected.  */
+        /*  
+            If we have sent all of the message we will change the state
+            to either closed or connected.  
+            This also assumes keep-alive, if we are not having a keep
+            alive connection, we need to mark the state as closed. 
+            To be done later. 
+        */
         d->state = d->state & DISCONNECTED ? CLOSED : CONNECTED;
     }else{
-        /*  We could not send the file because the kernel buffer was full   */
+        /*  We could not send the file because the kernel buffer was full  */
         d->state |= PENDING_REPLY;
     }
 
@@ -356,17 +361,23 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
 */
 
 void bz_close_event(event_loop_t* event_loop, data_t* d){
+    
     if(!d){
         fprintf(stderr, "Null data sent in bz_close_event\n");
         return ;
     }
+    
     int fd = d->fd;
+    
     bz_connection_t* conn = event_loop->connections[fd];
+    
     event_loop->connections[fd] = NULL;
 
-    /* Do a graceful shutdown */
-    shutdown(fd,SHUT_WR);
+    
+    close(fd);
 
     free(d);
     free(conn);
 }
+
+/* To do: add a bz_shutdown_event() once I add timer support */

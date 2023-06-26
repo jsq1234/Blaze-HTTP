@@ -114,18 +114,22 @@ int bz_process_events(event_loop_t* event_loop){
 
             struct epoll_event event = ev->events[i];
 
+            data_t* d = event.data.ptr;
+
             if( event.events & EPOLLERR ){
-                perror("epoll_err");
+
+                fprintf(stderr, "Strange epoll error.\n");
+                event_loop->handler.bz_handle_close_event(event_loop,d);
+
                 return -1;
             }
             if( event.events & EPOLLIN ){
-                data_t* d = (data_t*)event.data.ptr;
-
+        
                 if( d->filefd < 0 ){
                     /*  
                         A negative filefd indicates that the data_t belongs to the server.
                         Thus, we have a new connection
-                     */
+                    */
 
                     event_loop->handler.bz_handle_new_connection(event_loop,d);
 
@@ -142,9 +146,16 @@ int bz_process_events(event_loop_t* event_loop){
                     with epoll_ctl. I am not sure if this actually 
                     increases the performace by reducing epoll_ctl system call.
                 */
-                if( d->state & PENDING_REPLY )
-                    event_loop->handler.bz_handle_write_event(event_loop, d);
+                if( !(d->state & PENDING_REPLY) ){
+                  continue;
+                }
                 
+                event_loop->handler.bz_handle_write_event(event_loop, d);
+                
+            }
+
+            if( d->state & CLOSED ){
+                event_loop->handler.bz_handle_close_event(event_loop,d);
             }
         }
     }
@@ -278,13 +289,6 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
 
 void bz_write_event(event_loop_t* event_loop, data_t* d){
 
-    if( !(d->state & PENDING_REPLY) ){
-        return ;
-    }
-    
-    /*  Clear the state. */
-
-    d->state = 0;
     int fd = d->fd;
     int filefd = d->filefd;
     off_t file_size = d->f_size;
@@ -308,20 +312,24 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
                 /* 
                     Close the connection in case of any error.
                     Possible scenario -> Connection Reset/Broken pipe
+                    Close the connection.
                 */
                 d->state = CLOSED;
-                break;
+                return ;
             }
         }
         left -= bytesSnd;
     }
 
-    if( d->state == PENDING_REPLY ){
-        d->offset = offset;
-        return ;
+    if(!left){
+        /*  If we have sent all of the message we will change the state
+            to either closed or connected.  */
+        d->state = d->state & DISCONNECTED ? CLOSED : CONNECTED;
+    }else{
+        /*  We could not send the file because the kernel buffer was full   */
+        d->state |= PENDING_REPLY;
     }
 
-    d->state = REPLY_SENT;
 
 }
 
@@ -344,4 +352,3 @@ void bz_close_event(event_loop_t* event_loop, data_t* d){
     free(d);
     free(conn);
 }
-

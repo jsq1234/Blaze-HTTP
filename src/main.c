@@ -286,7 +286,7 @@ int run_event_loop(event_loop_t *event) {
 
                 break;
               }
-              perror("recv()");
+              //perror("recv()");
               break;
             } else {
               ptr[bytes] = '\0';
@@ -432,7 +432,7 @@ ssize_t send_file(int sockfd, int file_fd, size_t len, int* client_state){
                 return -total_sent;
             }else{
                 //log_message(&logger,strerror(errno));
-                perror("send_file()");
+                //perror("send_file()");
                 *client_state = 1;
                 break;
             }
@@ -465,7 +465,7 @@ ssize_t send_all(int sockfd, size_t len, const unsigned char *reply, int *client
         return -total_sent;
       } else {
           //log_message(&logger,strerror(errno));
-        perror("send()");
+        //perror("send()");
         *client_state = 1;
         //printf("errno : %d\n", errno);
         break;

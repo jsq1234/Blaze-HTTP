@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/sendfile.h>
+#include <string.h>
+
 
 static int bz_epoll_init(event_loop_t *event_loop, size_t size){
 
@@ -121,7 +123,7 @@ int bz_process_events(event_loop_t* event_loop){
 
                 if( d->filefd < 0 ){
                     /*  
-                        A negative filefd indicates that the data belongs to the server.
+                        A negative filefd indicates that the data_t belongs to the server.
                         Thus, we have a new connection
                      */
                     event_loop->handler.bz_handle_new_connection(event_loop,d);
@@ -139,9 +141,8 @@ int bz_process_events(event_loop_t* event_loop){
                     with epoll_ctl. I am not sure if this actually 
                     increases the performace by reducing epoll_ctl system call.
                 */
-                if( d->state == MSG_RECVD ){
-                    event_loop->handler.bz_handle_write_event(event_loop, d);
-                }
+                if()
+                event_loop->handler.bz_handle_write_event(event_loop, d);
             }
         }
     }
@@ -151,11 +152,22 @@ int bz_process_events(event_loop_t* event_loop){
 
 void bz_read_event(event_loop_t* event_loop, data_t* d){
 
+    if( d->state & PENDING_REPLY ){
+        return ;
+    }
+
+    /* Clear the previous state */
+    d->state = 0;
     int fd = d->fd;
 
     ssize_t bytesRcv = 0;
     size_t len = d->buff_size;
     
+    /*  
+        Note: A better way would be to parse as the messages arrive. 
+        This will be implemented at a later date. For now, this code just 
+        fills the client buffer with the messages that the server recieves.
+    */
     for(;;){
 
         bytesRcv = read(fd, d->buff, len);
@@ -166,14 +178,19 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
                 before closing our end.
             */
 
-            d->state = DISCONNECTED | PENDING_REPLY;
+            d->state = DISCONNECTED;
             break;
 
         }
         if( bytesRcv == -1 ){
             if( errno == EAGAIN || errno == EWOULDBLOCK ){
-                /* We have received everything that we could. */
-                d->state = PENDING_REPLY;
+                /* 
+                    There is no message to read, try again later. This is 
+                    rare because if this function was called then that means
+                    this socket was readablea and thus had data that could be 
+                    read.
+                 */
+                d->state = CONNECTED; 
                 break;
             }
         }
@@ -181,7 +198,22 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
         d->buff[len] = '\0';
         d->buff += len;
         len -= bytesRcv;
+
+        /* 
+            For now, the server doesn't accept pipelined request and thus
+            it is an assumption that the client will send one request message
+            before sending another.
+        */
+        if( strcmp((const char*)d->buff - 4, "\r\n\r\n") == 0 ){
+            break;
+        }
     }
+
+    if( d->state & CONNECTED ){
+        return ;
+    }
+
+    d->state |= PENDING_REPLY;
 
 }
 
@@ -235,7 +267,13 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
 
 void bz_write_event(event_loop_t* event_loop, data_t* d){
 
+    if( !(d->state & PENDING_REPLY) ){
+        return ;
+    }
     
+    /*  Clear the state. */
+
+    d->state = 0;
     int fd = d->fd;
     int filefd = d->filefd;
     off_t file_size = d->f_size;
@@ -278,7 +316,8 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
 
 /* 
     This function closes the socket descriptor and frees the resources
- */
+*/
+
 void bz_close_event(event_loop_t* event_loop, data_t* d){
     if(!d){
         fprintf(stderr, "Null data sent in bz_close_event\n");

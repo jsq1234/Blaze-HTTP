@@ -1,5 +1,6 @@
 #include "event_loop.h"
 #include "client.h"
+#include "networking.h"
 #include <errno.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -276,13 +277,16 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
 
     for(;;){
 
-        connfd = accept(sockfd,(struct sockaddr*)&conn_addr,&conn_len);
+        /* Automatically sets the connfd as non-blocking */
+        connfd = bz_accept(sockfd, (struct sockaddr*)&conn_addr, &conn_len);
 
         if( connfd == -1 ){
             if( errno == EAGAIN || errno == EWOULDBLOCK ){
                 /* We have processed all the connections. */
-                return ;
+            }else{
+                perror("accept()");
             }
+            return ;
         }
 
 #ifdef DBG

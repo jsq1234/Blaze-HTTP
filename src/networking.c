@@ -1,3 +1,6 @@
+#define _GNU_SOURCE
+#include <asm-generic/errno.h>
+#include <errno.h>
 #include "networking.h"
 #include <asm-generic/socket.h>
 #include <netinet/tcp.h>
@@ -89,4 +92,20 @@ int bz_set_tcp_nodelay(int fd){
         exit(1);
     }
     return 0; 
+}
+
+int bz_accept(int fd, struct sockaddr* adr, socklen_t* len){
+    
+    int connfd = -1;
+
+#ifdef __linux__
+    connfd = accept4(fd,adr,len,O_NONBLOCK);
+#else
+    connfd = accept(fd,addr,len);
+    if( bz_set_socket_nonblocking(fd) < 0 ){
+        return -1;
+    }
+#endif
+
+    return connfd; 
 }

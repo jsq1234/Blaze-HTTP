@@ -63,7 +63,7 @@ event_loop_t* bz_create_event_loop(size_t size){
     return event_loop;
 }
 
-void bz_add_event(int epfd, int fd, int flags){
+int bz_add_event(int epfd, int fd, int flags){
     struct epoll_event e = {0};
 
     e.data.fd = fd;
@@ -77,8 +77,11 @@ void bz_add_event(int epfd, int fd, int flags){
 
     if( epoll_ctl(epfd,op,fd,&e) < 0 ){
         // if the operation failed, close the file descriptor
-        close(fd);
+        perror("epoll_ctl()");
+        return -1;
     }
+
+    return 0;
 }
 
 
@@ -121,7 +124,7 @@ int bz_process_events(event_loop_t* event_loop){
                 fprintf(stderr, "Strange epoll error.\n");
                 event_loop->handler.bz_handle_close_event(event_loop,d);
 
-                return -1;
+                continue;
             }
             if( event.events & EPOLLIN ){
         
@@ -165,12 +168,12 @@ int bz_process_events(event_loop_t* event_loop){
 
 void bz_read_event(event_loop_t* event_loop, data_t* d){
 
-    if( d->state & PENDING_REPLY ){
+/*     if( d->state & PENDING_REPLY ){
         return ;
-    }
+    } */
 
     /* Clear the previous state */
-    d->state = 0;
+
     int fd = d->fd;
 
     ssize_t bytesRcv = 0;
@@ -186,7 +189,7 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
     */
     for(;;){
 
-        bytesRcv = read(fd, d->buff, len);
+        bytesRcv = read(fd, d->buff, len-1);
         if( bytesRcv == 0 ){
             /*  
                 Client has sent a FIN packet and thus has closed the connection
@@ -194,7 +197,7 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
                 before closing our end.
             */
 
-            d->state = DISCONNECTED;
+            d->state = DISCONNECTED | PENDING_REPLY;
             break;
 
         }
@@ -206,13 +209,18 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
                     this socket was readablea and thus had data that could be 
                     read.
                  */
+                done = 1;
                 d->state = CONNECTED; 
                 break;
+            }else{
+                perror("read()");
+                d->state = CLOSED;
+                return ;
             }
         }
 
-        d->buff[len] = '\0';
-        d->buff += len;
+        d->buff[bytesRcv] = '\0';
+        d->buff += bytesRcv;
         len -= bytesRcv;
 
         /* 
@@ -231,11 +239,14 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
         }
     }
 
-    if( d->state & CONNECTED ){
+/*     if( d->state & CONNECTED ){
         return ;
     }
+ */
 
-    d->state |= PENDING_REPLY;
+    /* Not totally correct, will change it once I add HTTP. */
+    if( msg_completed )
+        d->state |= PENDING_REPLY;
 
 }
 
@@ -281,9 +292,16 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
 
         conn->d = dt;
         
-        event_loop->connections[connfd] = conn;
 
-        bz_add_event(epollfd,connfd,BZ_ALL);
+        if( bz_add_event(epollfd,connfd,BZ_ALL) < 0 ){
+            free(dt->buff);
+            free(dt);
+            free(conn);
+            close(connfd);
+            continue;
+        }
+        
+        event_loop->connections[connfd] = conn;
     }
 }
 

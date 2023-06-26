@@ -50,7 +50,7 @@ struct event_loop_ds{
 
 event_loop_t* bz_create_event_loop(size_t size);
 
-void bz_add_event(int epfd, int fd,int flags);
+int bz_add_event(int epfd, int fd,int flags);
 void bz_delete_event(event_loop_t* event_loop, int fd, int del_mask);
 
 void bz_handle_new_connection(event_loop_t* event_loop, data_t* d);

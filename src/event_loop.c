@@ -126,6 +126,7 @@ int bz_process_events(event_loop_t* event_loop){
                         A negative filefd indicates that the data_t belongs to the server.
                         Thus, we have a new connection
                      */
+
                     event_loop->handler.bz_handle_new_connection(event_loop,d);
 
                 }else{
@@ -141,8 +142,9 @@ int bz_process_events(event_loop_t* event_loop){
                     with epoll_ctl. I am not sure if this actually 
                     increases the performace by reducing epoll_ctl system call.
                 */
-                if()
-                event_loop->handler.bz_handle_write_event(event_loop, d);
+                if( d->state & PENDING_REPLY )
+                    event_loop->handler.bz_handle_write_event(event_loop, d);
+                
             }
         }
     }
@@ -162,6 +164,9 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
 
     ssize_t bytesRcv = 0;
     size_t len = d->buff_size;
+
+    int msg_completed = 0;
+    int done = 0;
     
     /*  
         Note: A better way would be to parse as the messages arrive. 
@@ -205,6 +210,12 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
             before sending another.
         */
         if( strcmp((const char*)d->buff - 4, "\r\n\r\n") == 0 ){
+            msg_completed = 1;
+        }
+        
+        
+        /* To avoid some race conditions */
+        if( msg_completed && done ){
             break;
         }
     }
@@ -334,16 +345,3 @@ void bz_close_event(event_loop_t* event_loop, data_t* d){
     free(conn);
 }
 
-/* 
-    struct server_ds;
-    typedef server_ds server_t;
-
-    struct server_ds{
-        int sockfd;
-        struct sockaddr_in sa;
-        socklen_t len;
-        data_t dt;
-        event_loop_t* event_loop;
-    };
-
-*/

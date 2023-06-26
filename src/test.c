@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -7,10 +8,13 @@
 #define CLOSE (1<<3)
 #define ALL (READ|WRITE|CLOSE)
 
-void func(int* ptr){
-    free(ptr);
-}
+#include <sys/socket.h>
+#include <netinet/in.h>
 int main(){
-    int* a = malloc(sizeof(*a));
-    func(a);
+    
+    #ifdef HAVE_ACCEPT4
+        printf("have accept4\n");
+    #else
+        printf("doesn't have accept4\n");
+    #endif
 }

@@ -1,21 +1,6 @@
-#include <strings.h>
-#include <sys/socket.h>
-#include <stdint.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-
-int bz_create_socket(const char* sock_type);
-void bz_bind_socket(int fd, struct sockaddr_in* sadr);
-void bz_start_listening(int fd, int backlog);
-
-int bz_set_socket_nonblocking(int fd);
-int bz_set_tcp_keepalive(int fd);
-int bz_set_tcp_nodelay(int fd);
-int bz_set_so_reuse_port(int fd);
-int bz_set_so_reuse_addr(int fd);
+#include "networking.h"
+#include <asm-generic/socket.h>
+#include <netinet/tcp.h>
 
 int bz_create_socket(const char* sock_type){
     int fd = 0;
@@ -68,4 +53,40 @@ int bz_set_socket_nonblocking(int fd){
     return -1;
   }
   return 0;
+}
+
+int bz_set_so_reuse_addr(int fd){
+    int yes = 1;
+    if( setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&fd,sizeof(fd)) < 0){
+        perror("setsockopt()");
+        exit(1);
+    }
+    return 0;
+}
+
+int bz_set_so_reuse_port(int fd){
+    int yes = 1;
+    if( setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&fd,sizeof(fd)) < 0){
+        perror("setsockopt()");
+        exit(1);
+    }
+    return 0;   
+}
+
+int bz_set_tcp_keepalive(int fd){
+    int yes = 1;
+    if( setsockopt(fd,SOL_SOCKET, SO_KEEPALIVE ,&fd,sizeof(fd)) < 0){
+        perror("setsockopt()");
+        exit(1);
+    }
+    return 0; 
+}
+
+int bz_set_tcp_nodelay(int fd){
+    int yes = 1;
+    if( setsockopt(fd,SOL_TCP, TCP_NODELAY,&fd,sizeof(fd)) < 0){
+        perror("setsockopt()");
+        exit(1);
+    }
+    return 0; 
 }

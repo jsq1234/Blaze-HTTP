@@ -99,7 +99,7 @@ int bz_add_event(int epfd, int fd, int flags){
 }
 
 
-int run_event_loop(event_loop_t* event_loop){
+int bz_run_event_loop(event_loop_t* event_loop){
     for(;;){
         if( bz_process_events(event_loop) <= 0 ){
             /* TO_DO : Perform clean up action */

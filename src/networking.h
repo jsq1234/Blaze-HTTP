@@ -10,9 +10,9 @@
 #include <string.h>
 #include <fcntl.h>
 
-int bz_create_socket(const char* sock_type);
 void bz_bind_socket(int fd, struct sockaddr_in* sadr);
 void bz_start_listening(int fd, int backlog);
+int bz_create_socket(const char* sock_type);
 
 int bz_set_socket_nonblocking(int fd);
 int bz_set_tcp_keepalive(int fd);

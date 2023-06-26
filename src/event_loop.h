@@ -67,7 +67,7 @@ void bz_read_event(event_loop_t* event_loop, data_t* d);
 void bz_write_event(event_loop_t* event_loop, data_t* d);
 void bz_close_event(event_loop_t* event_loop, data_t* d);
 
-int run_event_loop(event_loop_t* event_loop);
+int bz_run_event_loop(event_loop_t* event_loop);
 int bz_process_events(event_loop_t* event_loop);
 
 #endif

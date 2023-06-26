@@ -9,6 +9,7 @@
 #include "client.h"
 
 #define MAX_CONN 4*1024
+#define MAX_EVENT 8*1024
 #define BZ_NONE 1<<0
 #define BZ_READABLE 1<<1
 #define BZ_WRITEABLE 1<<2
@@ -32,7 +33,7 @@ typedef void bz_event_handler_t(int e, data_t* d);
 
 typedef struct epoll_struct{
     int epollfd;
-    struct epoll_event* events;
+    struct epoll_event events[MAX_EVENT];
     int max_size;
 } bz_epoll_t;
 

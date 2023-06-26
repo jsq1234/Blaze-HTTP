@@ -55,6 +55,7 @@ typedef struct data{
     u_char* buff;       /* A buffer to hold data */
     size_t buff_size;   /* Size of the buffer */
     int     state;      /* State of the client. Use it only for the client. */
+    char padding[16];
 } data_t;
 
 struct connection_ds{

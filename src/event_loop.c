@@ -22,6 +22,8 @@ static int bz_epoll_init(event_loop_t *event_loop, size_t size){
         return -1;
     }
 
+#ifndef MAX_EVENT
+
     p->events = malloc(sizeof(struct epoll_event)*size);
 
     if( p->events == NULL ){
@@ -31,6 +33,10 @@ static int bz_epoll_init(event_loop_t *event_loop, size_t size){
     }
 
     p->max_size = size;
+    
+#else
+    p->max_size = MAX_EVENT;
+#endif
 
     event_loop->epoll_data = p;
 
@@ -168,11 +174,11 @@ int bz_process_events(event_loop_t* event_loop){
 
 void bz_read_event(event_loop_t* event_loop, data_t* d){
 
-/*     if( d->state & PENDING_REPLY ){
+    /*
+    if( d->state & PENDING_REPLY ){
         return ;
-    } */
-
-    /* Clear the previous state */
+    }
+    */
 
     int fd = d->fd;
 
@@ -204,13 +210,15 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
         if( bytesRcv == -1 ){
             if( errno == EAGAIN || errno == EWOULDBLOCK ){
                 /* 
-                    There is no message to read, try again later. This is 
-                    rare because if this function was called then that means
-                    this socket was readablea and thus had data that could be 
-                    read.
+                    There is no message to read, try again later. 
+                    A case where we can encounter this situation is
+                    when the client has sent a request but only a part
+                    of it has arrived, either due to congestion or if
+                    it was dropped midway. In this case, we break out of
+                    loop, marking the operation of reading the socket as
+                    "done"
                  */
-                done = 1;
-                d->state = CONNECTED; 
+                done = 1; 
                 break;
             }else{
                 perror("read()");
@@ -239,7 +247,8 @@ void bz_read_event(event_loop_t* event_loop, data_t* d){
         }
     }
 
-/*     if( d->state & CONNECTED ){
+/*    
+    if( d->state & CONNECTED ){
         return ;
     }
  */
@@ -353,7 +362,6 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
         d->state |= PENDING_REPLY;
     }
 
-
 }
 
 /* 
@@ -361,7 +369,7 @@ void bz_write_event(event_loop_t* event_loop, data_t* d){
 */
 
 void bz_close_event(event_loop_t* event_loop, data_t* d){
-    
+
     if(!d){
         fprintf(stderr, "Null data sent in bz_close_event\n");
         return ;

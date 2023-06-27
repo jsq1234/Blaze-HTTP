@@ -107,7 +107,7 @@ int bz_delete_event(int epfd, data_t* d){
         fprintf(stderr, "NULL data_t given.\n");
         return -1;
     }
-    
+
     struct epoll_event e = {0};
     int fd = d->fd;
     e.data.ptr = d;
@@ -116,6 +116,8 @@ int bz_delete_event(int epfd, data_t* d){
         perror("epoll_ctl()");
         return -1;
     }
+
+    return 0;
 }
 
 int bz_run_event_loop(event_loop_t *event_loop) {

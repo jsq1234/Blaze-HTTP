@@ -77,6 +77,11 @@ event_loop_t *bz_create_event_loop(size_t size) {
 }
 
 int bz_add_event(int epfd, data_t *d, int flags) {
+
+    if(!d){
+        fprintf(stderr, "NULL data_t given.\n");
+        return -1;
+    }
 	struct epoll_event e = {0};
 
 	int fd = d->fd;

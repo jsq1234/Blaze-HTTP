@@ -101,6 +101,23 @@ int bz_add_event(int epfd, data_t *d, int flags) {
 	return 0;
 }
 
+int bz_delete_event(int epfd, data_t* d){
+
+    if(!d){
+        fprintf(stderr, "NULL data_t given.\n");
+        return -1;
+    }
+    
+    struct epoll_event e = {0};
+    int fd = d->fd;
+    e.data.ptr = d;
+
+    if( epoll_ctl(epfd,EPOLL_CTL_DEL,fd,&e) < 0 ){
+        perror("epoll_ctl()");
+        return -1;
+    }
+}
+
 int bz_run_event_loop(event_loop_t *event_loop) {
 	for (;;) {
 		if (bz_process_events(event_loop) <= 0) {

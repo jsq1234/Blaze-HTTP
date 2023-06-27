@@ -77,10 +77,11 @@ event_loop_t* bz_create_event_loop(size_t size){
     return event_loop;
 }
 
-int bz_add_event(int epfd, int fd, int flags){
+int bz_add_event(int epfd, data_t* d, int flags){
     struct epoll_event e = {0};
-
-    e.data.fd = fd;
+    
+    int fd = d->fd;
+    e.data.ptr = d;
     e.events = flags;
 
     int op = flags & BZ_NONE ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
@@ -297,11 +298,20 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
 
         bz_connection_t* conn = malloc(sizeof(*conn));
         
+        if(!conn){
+
+        }
         conn->sa = conn_addr;
         conn->len = conn_len;
 
         data_t* dt = malloc(sizeof(*dt));
 
+        if(!dt){
+            fprintf(stderr, "Couldn't allocate memory for data_t\n");
+            close(connfd);
+            free(conn);
+            continue;
+        }
         dt->fd = connfd;
         dt->buff = malloc(1024);
         dt->buff_size = 1024;
@@ -313,7 +323,7 @@ void bz_handle_new_connection(event_loop_t* event_loop, data_t* d){
         conn->d = dt;
         
 
-        if( bz_add_event(epollfd,connfd,BZ_ALL) < 0 ){
+        if( bz_add_event(epollfd,dt,BZ_ALL) < 0 ){
             free(dt->buff);
             free(dt);
             free(conn);

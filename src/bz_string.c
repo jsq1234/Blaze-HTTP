@@ -48,13 +48,4 @@ int bz_str_append(bz_str_t *str, const char *c_str) {
 	return 0;
 }
 
-bz_str_t* bz_str_split(bz_str_t string, char delim) {
 
-	u_char *s = string.ptr;
-    bz_str_t* ans = malloc(sizeof(*ans)*10);
-	for (int i = 0, j = 0; i < string.len; i++) {
-        if( s[i] == delim ){
-
-        }
-	}
-}

@@ -337,7 +337,13 @@ void bz_handle_new_connection(event_loop_t *event_loop, data_t *d) {
 			continue;
 		}
 		dt->fd = connfd;
-		dt->buff = malloc(1024);
+		if( (dt->buff = malloc(1024)) == NULL ){
+            fprintf(stderr,"cannot allocate memory for d->buff\n");
+            free(dt);
+            free(conn);
+            continue;
+        }
+        
 		dt->buff_size = 1024;
 		dt->filefd = 0;
 		dt->state = CONNECTED;

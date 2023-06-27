@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
 typedef struct bz_string{
     u_char* ptr;
     size_t len;
     size_t capacity;    
 } bz_str_t;
 
-bz_str_t bz_string(const char* str);
 
 bz_str_t bz_string(const char* str){
 
@@ -28,7 +28,7 @@ bz_str_t bz_string(const char* str){
 }
 
 
-int bz_string_append(bz_str_t* str, const char* c_str){
+int bz_str_append(bz_str_t* str, const char* c_str){
 
     assert(c_str != NULL && "Null string passed to append.");
 
@@ -42,6 +42,7 @@ int bz_string_append(bz_str_t* str, const char* c_str){
         str->capacity *= 2;
 
     }
+
     memcpy(str->ptr + str->len, c_str, strlen(c_str));
     str->len += strlen(c_str) + 1;
 
@@ -50,6 +51,7 @@ int bz_string_append(bz_str_t* str, const char* c_str){
     return 0;
 }
 
+int bz_str_split()
 
 
 

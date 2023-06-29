@@ -76,6 +76,11 @@ event_loop_t *bz_create_event_loop(size_t size) {
 	return event_loop;
 }
 
+/* Normally, you would use this function to add events 
+ *  with BZ_ALL which would make epoll monitor the fd 
+ *  for both read and write events in edge triggered mode
+ *  Doing this saves system calls to epoll_ctl.
+ */
 int bz_add_event(int epfd, data_t *d, int flags) {
 
     if(!d){

@@ -8,7 +8,7 @@ The asynchronous server runs in a event loop, polling for sockets that are ready
   There aren't a lot of requirement. Just ensure that cmake is installed and you are using linux. 
   
 ### Benchmark
-wrk was used to benchmark the server. As you can see, it can handles high load of connections, with low latency and can
+wrk was used to benchmark the server. As you can see, it can handle high load of connections, with low latency and can
 server 67K requests per second.
 
 ![image](benchmark.png)
